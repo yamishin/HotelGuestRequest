@@ -15,28 +15,12 @@
                 </p>
             </div>
             <div>
-                <h3 style="font-size: 0.9rem; color: #E84E1B; margin-bottom: 10px;">🍽️ Restaurant</h3>
+                <h3 style="font-size: 0.9rem; color: #E84E1B; margin-bottom: 10px;">Coffee Club</h3>
                 <p style="font-size: 0.85rem; color: #666; line-height: 1.7;">
                     Breakfast: 6:00 AM – 10:00 AM<br>
                     Lunch: 11:30 AM – 2:30 PM<br>
                     Dinner: 6:00 PM – 10:00 PM<br>
                     Location: 5th Floor
-                </p>
-            </div>
-            <div>
-                <h3 style="font-size: 0.9rem; color: #E84E1B; margin-bottom: 10px;">🏊 Pool & Gym</h3>
-                <p style="font-size: 0.85rem; color: #666; line-height: 1.7;">
-                    Pool: 6:00 AM – 10:00 PM<br>
-                    Gym: 24 hours (keycard access)<br>
-                    Location: 6th Floor
-                </p>
-            </div>
-            <div>
-                <h3 style="font-size: 0.9rem; color: #E84E1B; margin-bottom: 10px;">💆 Spa</h3>
-                <p style="font-size: 0.85rem; color: #666; line-height: 1.7;">
-                    Open: 10:00 AM – 9:00 PM<br>
-                    Book at the front desk<br>
-                    Location: 7th Floor
                 </p>
             </div>
         </div>

@@ -42,8 +42,8 @@ class StaffController extends Controller
         return view('dashboards.staff.index', compact('user', 'myTasks', 'stats'));
     }
 
-    /* ============================================================
-     |  MY TASKS (assigned + in_progress)
+        /* ============================================================
+     |  MY TASKS (assigned + in_progress + completed awaiting guest)
      ============================================================ */
     public function tasks(Request $request)
     {
@@ -52,14 +52,16 @@ class StaffController extends Controller
         $query = ServiceRequest::where('assigned_to', $user->id)
             ->with(['stay.guest', 'stay.room']);
 
-        // Filter by status
+        // Show only active/awaiting/returned, not verified
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         } else {
-            $query->whereIn('status', ['assigned', 'in_progress']);
+            $query->whereIn('status', ['assigned', 'in_progress', 'completed']);
+            $query->where(function ($q) {
+                $q->whereNull('guest_confirmed_at'); // exclude already-verified
+            });
         }
 
-        // Search
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
@@ -71,7 +73,7 @@ class StaffController extends Controller
             });
         }
 
-        $tasks = $query->orderByRaw("FIELD(status, 'in_progress', 'assigned')")->latest()->paginate(15)->withQueryString();
+        $tasks = $query->latest()->paginate(30)->withQueryString();
 
         return view('dashboards.staff.tasks', compact('tasks'));
     }
@@ -110,40 +112,40 @@ class StaffController extends Controller
         return view('dashboards.staff.all_requests', compact('requests'));
     }
 
-    /* ============================================================
+        /* ============================================================
      |  UPDATE TASK STATUS
      ============================================================ */
     public function updateTaskStatus(Request $request, ServiceRequest $serviceRequest)
     {
         $user = Auth::user();
 
-        // Ensure this request is assigned to this staff member
         if ($serviceRequest->assigned_to !== $user->id) {
             abort(403, 'This task is not assigned to you.');
         }
 
         $validated = $request->validate([
-            'status' => 'required|in:in_progress,completed',
+            'status'      => 'required|in:in_progress,completed',
+            'staff_notes' => 'nullable|string|max:500',
         ]);
 
-        // Use updateStatus() so the guest is notified automatically
-        $serviceRequest->updateStatus($validated['status']);
-
-        // Notify supervisor when completed
         if ($validated['status'] === 'completed') {
-            Notification::create([
+            $serviceRequest->markCompleted($validated['staff_notes'] ?? null);
+
+            \App\Models\Notification::create([
                 'type'        => 'request',
                 'title'       => 'Task Completed',
                 'message'     => "{$user->name} completed: {$serviceRequest->title} (Room {$serviceRequest->stay->room->room_number})",
                 'target_role' => 'supervisor',
                 'is_read'     => false,
             ]);
+
+            return back()->with('success', 'Task marked completed. Awaiting guest confirmation.');
         }
 
-        $label = $validated['status'] === 'completed' ? 'completed' : 'updated';
-        return back()->with('success', "Task {$label} successfully.");
+        // in_progress
+        $serviceRequest->updateStatus('in_progress');
+        return back()->with('success', 'Task updated to In Progress.');
     }
-
     /* ============================================================
      |  NOTIFICATIONS (staff-targeted)
      ============================================================ */

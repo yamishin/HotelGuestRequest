@@ -1,30 +1,6 @@
-<li>
-    <a href="{{ route('supervisor.dashboard') }}" class="{{ request()->routeIs('supervisor.dashboard') ? 'active' : '' }}">
-        Dashboard
-    </a>
-</li>
-<li>
-    <a href="{{ route('supervisor.queue') }}" class="{{ request()->routeIs('supervisor.queue') ? 'active' : '' }}">
-        Request Queue
-    </a>
-</li>
-<li>
-    <a href="{{ route('supervisor.staff') }}" class="{{ request()->routeIs('supervisor.staff') ? 'active' : '' }}">
-        Staff
-    </a>
-</li>
-<li>
-    <a href="{{ route('supervisor.history') }}" class="{{ request()->routeIs('supervisor.history') ? 'active' : '' }}">
-        History
-    </a>
-</li>
-<li>
-    <a href="{{ route('supervisor.notifications') }}" class="{{ request()->routeIs('supervisor.notifications') ? 'active' : '' }}">
-        Notifications
-    </a>
-</li>
-<li>
-    <a href="{{ route('supervisor.profile') }}" class="{{ request()->routeIs('supervisor.profile') ? 'active' : '' }}">
-        Profile
-    </a>
-</li>
+<li><a href="{{ route('supervisor.dashboard') }}" class="{{ request()->routeIs('supervisor.dashboard') ? 'active' : '' }}"><i class="fa-solid fa-gauge-high"></i> Dashboard</a></li>
+<li><a href="{{ route('supervisor.queue') }}" class="{{ request()->routeIs('supervisor.queue') ? 'active' : '' }}"><i class="fa-solid fa-list-check"></i> Request Queue</a></li>
+<li><a href="{{ route('supervisor.staff') }}" class="{{ request()->routeIs('supervisor.staff*') ? 'active' : '' }}"><i class="fa-solid fa-user-group"></i> Staff</a></li>
+<li><a href="{{ route('supervisor.history') }}" class="{{ request()->routeIs('supervisor.history') ? 'active' : '' }}"><i class="fa-solid fa-clock-rotate-left"></i> History</a></li>
+<li><a href="{{ route('supervisor.notifications') }}" class="{{ request()->routeIs('supervisor.notifications') ? 'active' : '' }}"><i class="fa-solid fa-bell"></i> Notifications</a></li>
+<li><a href="{{ route('supervisor.profile') }}" class="{{ request()->routeIs('supervisor.profile') ? 'active' : '' }}"><i class="fa-solid fa-user"></i> Profile</a></li>

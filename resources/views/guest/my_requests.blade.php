@@ -20,10 +20,7 @@
                         <span style="font-size: 0.7rem; color: #999;">Submitted {{ $req->created_at->diffForHumans() }}</span>
                     </div>
                     <div style="text-align: right;">
-                        <span class="badge badge-{{
-                            $req->status === 'completed' ? 'success' :
-                            ($req->status === 'pending' ? 'danger' : 'warning')
-                        }}">
+                        <span class="badge badge-{{ $req->status_color }}">
                             {{ $req->status_label }}
                         </span>
                         <div style="font-size: 0.7rem; color: #E84E1B; margin-top: 8px; font-weight: 600;">View →</div>

@@ -117,7 +117,8 @@
                 </div>
                 <div class="modal-body">
                     <p style="font-size: 0.9rem; color: #666; margin-bottom: 20px;">
-                        Please provide these credentials to <strong>{{ $creds['name'] }}</strong>. They can change the password after first login.
+                        Please provide these credentials to <strong>{{ $creds['name'] }}</strong>. 
+                        <strong style="color: #E84E1B;">They should change this default password after first login.</strong>
                     </p>
 
                     <div class="cred-box">

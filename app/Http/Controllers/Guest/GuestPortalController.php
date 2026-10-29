@@ -234,4 +234,48 @@ class GuestPortalController extends Controller
         session()->forget('guest_stay_id');
         return redirect('/')->with('success', 'You have been logged out.');
     }
+
+        /* ============================================================
+     |  Guest confirms the service is done
+     ============================================================ */
+    public function confirmRequest(\App\Models\ServiceRequest $serviceRequest)
+    {
+        $stay = Stay::find(session('guest_stay_id'));
+
+        if ($serviceRequest->stay_id !== $stay->id) {
+            abort(403);
+        }
+
+        if ($serviceRequest->status !== 'completed') {
+            return back()->with('error', 'This request is not pending confirmation.');
+        }
+
+        $serviceRequest->confirmByGuest();
+
+        return back()->with('success', 'Thank you for confirming! We\'re glad it\'s resolved. ⭐');
+    }
+
+    /* ============================================================
+     |  Guest reports it's NOT resolved
+     ============================================================ */
+    public function rejectRequest(Request $request, \App\Models\ServiceRequest $serviceRequest)
+    {
+        $stay = Stay::find(session('guest_stay_id'));
+
+        if ($serviceRequest->stay_id !== $stay->id) {
+            abort(403);
+        }
+
+        if ($serviceRequest->status !== 'completed') {
+            return back()->with('error', 'This request is not pending confirmation.');
+        }
+
+        $validated = $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $serviceRequest->rejectByGuest($validated['reason'] ?? null);
+
+        return back()->with('success', 'We\'ve notified our team. Someone will follow up shortly.');
+    }
 }

@@ -11,8 +11,10 @@ export default defineConfig({
         tailwindcss(),
     ],
     server: {
-        watch: {
-            ignored: ['**/storage/framework/views/**'],
+        host: '0.0.0.0',
+        port: 5173,
+        hmr: {
+            host: '192.168.10.156', // your laptop's LAN IP
         },
     },
 });

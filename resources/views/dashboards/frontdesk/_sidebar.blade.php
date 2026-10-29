@@ -1,7 +1,7 @@
-<li><a href="{{ route('frontdesk.dashboard') }}" class="{{ request()->routeIs('frontdesk.dashboard') ? 'active' : '' }}">Dashboard</a></li>
-<li><a href="{{ route('frontdesk.guests_stays') }}" class="{{ request()->routeIs('frontdesk.guests_stays') ? 'active' : '' }}">Guests & Stays</a></li>
-<li><a href="{{ route('frontdesk.rooms') }}" class="{{ request()->routeIs('frontdesk.rooms') ? 'active' : '' }}">Rooms</a></li>
-<li><a href="{{ route('frontdesk.notifications') }}" class="{{ request()->routeIs('frontdesk.notifications') ? 'active' : '' }}">Notifications</a></li>
-<li><a href="{{ route('frontdesk.history') }}" class="{{ request()->routeIs('frontdesk.history') ? 'active' : '' }}">History</a></li>
-<li><a href="{{ route('frontdesk.reports') }}" class="{{ request()->routeIs('frontdesk.reports') ? 'active' : '' }}">Reports</a></li>
-<li><a href="{{ route('frontdesk.profile') }}" class="{{ request()->routeIs('frontdesk.profile') ? 'active' : '' }}">Profile</a></li>
+<li><a href="{{ route('frontdesk.dashboard') }}" class="{{ request()->routeIs('frontdesk.dashboard') ? 'active' : '' }}"><i class="fa-solid fa-gauge-high"></i> Dashboard</a></li>
+<li><a href="{{ route('frontdesk.guests_stays') }}" class="{{ request()->routeIs('frontdesk.guests_stays') ? 'active' : '' }}"><i class="fa-solid fa-users"></i> Guests & Stays</a></li>
+<li><a href="{{ route('frontdesk.rooms') }}" class="{{ request()->routeIs('frontdesk.rooms') ? 'active' : '' }}"><i class="fa-solid fa-bed"></i> Rooms</a></li>
+<li><a href="{{ route('frontdesk.notifications') }}" class="{{ request()->routeIs('frontdesk.notifications') ? 'active' : '' }}"><i class="fa-solid fa-bell"></i> Notifications</a></li>
+<li><a href="{{ route('frontdesk.history') }}" class="{{ request()->routeIs('frontdesk.history') ? 'active' : '' }}"><i class="fa-solid fa-clock-rotate-left"></i> History</a></li>
+<li><a href="{{ route('frontdesk.reports') }}" class="{{ request()->routeIs('frontdesk.reports') ? 'active' : '' }}"><i class="fa-solid fa-chart-line"></i> Reports</a></li>
+<li><a href="{{ route('frontdesk.profile') }}" class="{{ request()->routeIs('frontdesk.profile') ? 'active' : '' }}"><i class="fa-solid fa-user"></i> Profile</a></li>

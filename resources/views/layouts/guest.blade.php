@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title') | Swiss-Belhotel Blulane</title>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Montserrat', sans-serif; background-color: #f8f9fa; min-height: 100vh; }
@@ -52,6 +53,8 @@
         /* MOBILE NAV /SCROLL */
         .guest-nav::-webkit-scrollbar { height: 4px; }
         .guest-nav::-webkit-scrollbar-thumb { background: #E84E1B; border-radius: 2px; }
+
+        .guest-nav a i { margin-right: 6px; font-size: 0.85rem; }
     </style>
 </head>
 <body>
@@ -71,13 +74,13 @@
     </header>
 
     <nav class="guest-nav">
-        <a href="{{ route('guest.dashboard') }}" class="{{ request()->routeIs('guest.dashboard') ? 'active' : '' }}">Home</a>
-        <a href="{{ route('guest.my_stay') }}" class="{{ request()->routeIs('guest.my_stay') ? 'active' : '' }}">My Stay</a>
-        <a href="{{ route('guest.request.form') }}" class="{{ request()->routeIs('guest.request.*') ? 'active' : '' }}">Request Service</a>
-        <a href="{{ route('guest.my_requests') }}" class="{{ request()->routeIs('guest.my_requests', 'guest.request.detail') ? 'active' : '' }}">My Requests</a>
-        <a href="{{ route('guest.notifications') }}" class="{{ request()->routeIs('guest.notifications') ? 'active' : '' }}">Notifications</a>
-        <a href="{{ route('guest.hotel_info') }}" class="{{ request()->routeIs('guest.hotel_info') ? 'active' : '' }}">Hotel Info</a>
-        <a href="{{ route('guest.review.form') }}" class="{{ request()->routeIs('guest.review.*') ? 'active' : '' }}">Leave Review</a>
+        <a href="{{ route('guest.dashboard') }}" class="{{ request()->routeIs('guest.dashboard') ? 'active' : '' }}"><i class="fa-solid fa-house"></i> Home</a>
+        <a href="{{ route('guest.my_stay') }}" class="{{ request()->routeIs('guest.my_stay') ? 'active' : '' }}"><i class="fa-solid fa-hotel"></i> My Stay</a>
+        <a href="{{ route('guest.request.form') }}" class="{{ request()->routeIs('guest.request.*') ? 'active' : '' }}"><i class="fa-solid fa-bell-concierge"></i> Request Service</a>
+        <a href="{{ route('guest.my_requests') }}" class="{{ request()->routeIs('guest.my_requests', 'guest.request.detail') ? 'active' : '' }}"><i class="fa-solid fa-list-check"></i> My Requests</a>
+        <a href="{{ route('guest.notifications') }}" class="{{ request()->routeIs('guest.notifications') ? 'active' : '' }}"><i class="fa-solid fa-bell"></i> Notifications</a>
+        <a href="{{ route('guest.hotel_info') }}" class="{{ request()->routeIs('guest.hotel_info') ? 'active' : '' }}"><i class="fa-solid fa-circle-info"></i> Hotel Info</a>
+        <a href="{{ route('guest.review.form') }}" class="{{ request()->routeIs('guest.review.*') ? 'active' : '' }}"><i class="fa-solid fa-star"></i> Leave Review</a>
     </nav>
 
     <main class="guest-main">

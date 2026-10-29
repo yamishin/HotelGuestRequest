@@ -1,30 +1,6 @@
-<li>
-    <a href="{{ route('staff.dashboard') }}" class="{{ request()->routeIs('staff.dashboard') ? 'active' : '' }}">
-        Dashboard
-    </a>
-</li>
-<li>
-    <a href="{{ route('staff.tasks') }}" class="{{ request()->routeIs('staff.tasks') ? 'active' : '' }}">
-        My Tasks
-    </a>
-</li>
-<li>
-    <a href="{{ route('staff.all_requests') }}" class="{{ request()->routeIs('staff.all_requests') ? 'active' : '' }}">
-        Department Requests
-    </a>
-</li>
-<li>
-    <a href="{{ route('staff.notifications') }}" class="{{ request()->routeIs('staff.notifications') ? 'active' : '' }}">
-        Notifications
-    </a>
-</li>
-<li>
-    <a href="{{ route('staff.history') }}" class="{{ request()->routeIs('staff.history') ? 'active' : '' }}">
-        History
-    </a>
-</li>
-<li>
-    <a href="{{ route('staff.profile') }}" class="{{ request()->routeIs('staff.profile') ? 'active' : '' }}">
-        Profile
-    </a>
-</li>
+<li><a href="{{ route('staff.dashboard') }}" class="{{ request()->routeIs('staff.dashboard') ? 'active' : '' }}"><i class="fa-solid fa-gauge-high"></i> Dashboard</a></li>
+<li><a href="{{ route('staff.tasks') }}" class="{{ request()->routeIs('staff.tasks*') ? 'active' : '' }}"><i class="fa-solid fa-clipboard-list"></i> My Tasks</a></li>
+<li><a href="{{ route('staff.all_requests') }}" class="{{ request()->routeIs('staff.all_requests') ? 'active' : '' }}"><i class="fa-solid fa-building"></i> Department Requests</a></li>
+<li><a href="{{ route('staff.notifications') }}" class="{{ request()->routeIs('staff.notifications') ? 'active' : '' }}"><i class="fa-solid fa-bell"></i> Notifications</a></li>
+<li><a href="{{ route('staff.history') }}" class="{{ request()->routeIs('staff.history') ? 'active' : '' }}"><i class="fa-solid fa-clock-rotate-left"></i> History</a></li>
+<li><a href="{{ route('staff.profile') }}" class="{{ request()->routeIs('staff.profile') ? 'active' : '' }}"><i class="fa-solid fa-user"></i> Profile</a></li>

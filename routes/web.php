@@ -60,6 +60,9 @@ Route::prefix('guest')
     Route::get('/review',        [GuestPortalController::class, 'reviewForm'])->name('review.form');
     Route::post('/review',       [GuestPortalController::class, 'reviewStore'])->name('review.store');
     Route::post('/logout',       [GuestPortalController::class, 'logout'])->name('logout');
+
+    Route::post('/requests/{serviceRequest}/confirm', [GuestPortalController::class, 'confirmRequest'])->name('request.confirm');
+    Route::post('/requests/{serviceRequest}/reject', [GuestPortalController::class, 'rejectRequest'])->name('request.reject');
 });
 
 

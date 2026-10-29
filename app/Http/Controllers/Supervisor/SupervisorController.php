@@ -167,27 +167,53 @@ class SupervisorController extends Controller
         ));
     }
 
-
     /* ============================================================
-     |  HISTORY — completed or cancelled
+     |  HISTORY — verified (completed & confirmed) + cancelled
      ============================================================ */
     public function history(Request $request)
     {
-        $query = ServiceRequest::with(['stay.guest', 'stay.room', 'assignee'])
-            ->whereIn('status', ['completed', 'cancelled'])
-            ->latest('updated_at');
+        $query = ServiceRequest::with(['stay.guest', 'stay.room', 'assignee']);
 
+        // Default: show only verified + cancelled
+        $statusFilter = $request->get('status', 'verified');
+
+        if ($statusFilter === 'verified') {
+            $query->where('status', 'verified');
+        } elseif ($statusFilter === 'cancelled') {
+            $query->where('status', 'cancelled');
+        } elseif ($statusFilter === 'awaiting') {
+            $query->where('status', 'completed')->whereNull('guest_confirmed_at');
+        } else {
+            // 'all' — verified + cancelled
+            $query->whereIn('status', ['verified', 'cancelled']);
+        }
+
+        // Search
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('title', 'like', "%{$s}%")
-                  ->orWhere('request_code', 'like', "%{$s}%");
+                  ->orWhere('request_code', 'like', "%{$s}%")
+                  ->orWhereHas('stay.room', function ($r) use ($s) {
+                      $r->where('room_number', 'like', "%{$s}%");
+                  })
+                  ->orWhereHas('stay.guest', function ($g) use ($s) {
+                      $g->where('first_name', 'like', "%{$s}%")
+                        ->orWhere('last_name', 'like', "%{$s}%");
+                  });
             });
         }
 
-        $history = $query->paginate(15)->withQueryString();
+        $history = $query->latest('updated_at')->paginate(15)->withQueryString();
 
-        return view('dashboards.supervisor.history', compact('history'));
+        // Counts for filter tabs
+        $counts = [
+            'verified' => ServiceRequest::where('status', 'verified')->count(),
+            'awaiting' => ServiceRequest::where('status', 'completed')->whereNull('guest_confirmed_at')->count(),
+            'cancelled'=> ServiceRequest::where('status', 'cancelled')->count(),
+        ];
+
+        return view('dashboards.supervisor.history', compact('history', 'counts'));
     }
 
     /* ============================================================
@@ -261,8 +287,7 @@ class SupervisorController extends Controller
         return back()->with('success', 'Password updated successfully.');
     }
 
-
-        /* ============================================================
+    /* ============================================================
      |  STAFF — Add form
      ============================================================ */
     public function staffCreate()
@@ -271,7 +296,7 @@ class SupervisorController extends Controller
     }
 
     /* ============================================================
-     |  STAFF — Store new staff member
+     |  STAFF — Store new staff member (default password: "password")
      ============================================================ */
     public function staffStore(Request $request)
     {
@@ -294,16 +319,8 @@ class SupervisorController extends Controller
         }
         $employeeCode = 'EMP-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
 
-        // Generate random password (e.g. HK-4829 for Housekeeping, MT-1203 for Maintenance, etc.)
-        $deptPrefix = match ($validated['department']) {
-            'Housekeeping' => 'HK',
-            'Maintenance'  => 'MT',
-            'IT'           => 'IT',
-            'Front Desk'   => 'FD',
-            default        => 'ST',
-        };
-        $randomDigits = str_pad(random_int(1000, 9999), 4, '0', STR_PAD_LEFT);
-        $plainPassword = "{$deptPrefix}-{$randomDigits}";
+        // Default password for all new staff members
+        $plainPassword = 'password';
 
         $staff = User::create([
             'name'          => $validated['name'],
@@ -336,12 +353,10 @@ class SupervisorController extends Controller
      ============================================================ */
     public function staffShow(User $user)
     {
-        // Ensure they're a staff member
         if ($user->role !== 'staff') {
             abort(404, 'Staff member not found.');
         }
 
-        // Load relationships and workload stats
         $user->load(['assignedRequests.stay.room', 'assignedRequests.stay.guest']);
 
         $activeRequests = $user->assignedRequests()
@@ -424,7 +439,7 @@ class SupervisorController extends Controller
     }
 
     /* ============================================================
-     |  STAFF — Reset password
+     |  STAFF — Reset password (default: "password")
      ============================================================ */
     public function staffResetPassword(User $user)
     {
@@ -432,15 +447,8 @@ class SupervisorController extends Controller
             abort(404, 'Staff member not found.');
         }
 
-        $deptPrefix = match ($user->department) {
-            'Housekeeping' => 'HK',
-            'Maintenance'  => 'MT',
-            'IT'           => 'IT',
-            'Front Desk'   => 'FD',
-            default        => 'ST',
-        };
-        $randomDigits = str_pad(random_int(1000, 9999), 4, '0', STR_PAD_LEFT);
-        $plainPassword = "{$deptPrefix}-{$randomDigits}";
+        // Reset to default password
+        $plainPassword = 'password';
 
         $user->update([
             'password' => Hash::make($plainPassword),

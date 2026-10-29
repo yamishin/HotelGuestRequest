@@ -11,12 +11,19 @@ class ServiceRequest extends Model
 
     protected $fillable = [
         'request_code', 'stay_id', 'title', 'description',
-        'department', 'status', 'assigned_to', 'completed_at'
+        'department', 'status', 'assigned_to', 'completed_at',
+        'guest_confirmed_at', 'staff_notes', 'returned_by_guest',
     ];
 
     protected $casts = [
-        'completed_at' => 'datetime',
+        'completed_at'       => 'datetime',
+        'guest_confirmed_at' => 'datetime',
+        'returned_by_guest'  => 'boolean',
     ];
+
+    /* ============================================================
+     |  RELATIONSHIPS
+     ============================================================ */
 
     public function stay()
     {
@@ -27,8 +34,9 @@ class ServiceRequest extends Model
     {
         return $this->belongsTo(User::class, 'assigned_to');
     }
+
     /* ============================================================
-     |  Notify the guest about a status change
+     |  NOTIFY GUEST
      ============================================================ */
     public function notifyGuest(string $title, string $message): void
     {
@@ -42,7 +50,7 @@ class ServiceRequest extends Model
     }
 
     /* ============================================================
-     |  Human-readable status label
+     |  STATUS LABEL
      ============================================================ */
     public function getStatusLabelAttribute(): string
     {
@@ -50,13 +58,32 @@ class ServiceRequest extends Model
             'pending'     => 'Pending',
             'assigned'    => 'Assigned to Staff',
             'in_progress' => 'In Progress',
-            'completed'   => 'Completed',
+            'completed'   => $this->guest_confirmed_at ? 'Verified' : 'Awaiting Confirmation',
+            'verified'    => 'Verified ✓',
             'cancelled'   => 'Cancelled',
             default       => ucfirst($this->status),
         };
     }
+
     /* ============================================================
-     |  Update status + notify guest
+     |  STATUS COLOR
+     ============================================================ */
+    public function getStatusColorAttribute(): string
+    {
+        return match ($this->status) {
+            'pending'     => 'danger',
+            'assigned'    => 'info',
+            'in_progress' => 'warning',
+            'completed'   => 'orange',
+            'verified'    => 'success',
+            'cancelled'   => 'grey',
+            default       => 'grey',
+        };
+    }
+
+    /* ============================================================
+     |  UPDATE STATUS + NOTIFY GUEST
+     |  (used for 'assigned' and 'in_progress')
      ============================================================ */
     public function updateStatus(string $newStatus): void
     {
@@ -70,8 +97,6 @@ class ServiceRequest extends Model
             'completed_at' => $newStatus === 'completed' ? now() : null,
         ]);
 
-        // Notify the guest with a context-aware message
-        $roomNumber = $this->stay->room->room_number ?? 'your room';
         $title = match ($newStatus) {
             'assigned'    => 'Request Assigned',
             'in_progress' => 'Request In Progress',
@@ -91,18 +116,103 @@ class ServiceRequest extends Model
         $this->notifyGuest($title, $message);
     }
 
-        /* ============================================================
-     |  Status badge color for UI
+    /* ============================================================
+     |  STAFF MARKS COMPLETED (with optional notes)
+     |  Notifies guest to CONFIRM + notifies supervisor
      ============================================================ */
-    public function getStatusColorAttribute(): string
+    public function markCompleted(?string $notes = null): void
     {
-        return match ($this->status) {
-            'pending'     => 'danger',
-            'assigned'    => 'info',
-            'in_progress' => 'warning',
-            'completed'   => 'success',
-            'cancelled'   => 'grey',
-            default       => 'grey',
-        };
+        $this->update([
+            'status'       => 'completed',
+            'completed_at' => now(),
+            'staff_notes'  => $notes ?? $this->staff_notes,
+        ]);
+
+        // Notify guest — awaiting their confirmation
+        \App\Models\Notification::create([
+            'type'        => 'request',
+            'title'       => 'Please Confirm Completion',
+            'message'     => "Your request \"{$this->title}\" has been marked as done. Please confirm if it's resolved.",
+            'target_role' => 'guest',
+            'is_read'     => false,
+        ]);
+
+        // Notify supervisor
+        \App\Models\Notification::create([
+            'type'        => 'request',
+            'title'       => 'Task Awaiting Guest Confirmation',
+            'message'     => "{$this->title} (Room {$this->stay->room->room_number}) awaiting guest confirmation",
+            'target_role' => 'supervisor',
+            'is_read'     => false,
+        ]);
+    }
+
+    /* ============================================================
+     |  GUEST CONFIRMS — service verified
+     ============================================================ */
+    public function confirmByGuest(): void
+    {
+        $this->update([
+            'status'             => 'verified',
+            'guest_confirmed_at' => now(),
+            'returned_by_guest'  => false,
+        ]);
+
+        // Notify staff
+        if ($this->assigned_to) {
+            \App\Models\Notification::create([
+                'type'        => 'request',
+                'title'       => 'Guest Confirmed',
+                'message'     => "Room {$this->stay->room->room_number} confirmed: {$this->title}",
+                'target_role' => 'staff:' . $this->assigned_to,
+                'is_read'     => false,
+            ]);
+        }
+
+        // Notify supervisor
+        \App\Models\Notification::create([
+            'type'        => 'request',
+            'title'       => 'Service Verified',
+            'message'     => "Room {$this->stay->room->room_number} confirmed {$this->title} is resolved",
+            'target_role' => 'supervisor',
+            'is_read'     => false,
+        ]);
+    }
+
+    /* ============================================================
+     |  GUEST REJECTS — returns to staff for follow-up
+     ============================================================ */
+    public function rejectByGuest(?string $reason = null): void
+    {
+        $this->update([
+            'status'            => 'in_progress',
+            'returned_by_guest' => true,
+            'completed_at'      => null,
+        ]);
+
+        $message = "Room {$this->stay->room->room_number} reports \"{$this->title}\" is NOT resolved.";
+        if ($reason) {
+            $message .= " Reason: {$reason}";
+        }
+
+        // Notify staff
+        if ($this->assigned_to) {
+            \App\Models\Notification::create([
+                'type'        => 'request',
+                'title'       => 'Guest Reported Issue',
+                'message'     => $message,
+                'target_role' => 'staff:' . $this->assigned_to,
+                'is_read'     => false,
+            ]);
+        }
+
+        // Notify supervisor
+        \App\Models\Notification::create([
+            'type'        => 'request',
+            'title'       => 'Request Returned by Guest',
+            'message'     => $message,
+            'target_role' => 'supervisor',
+            'is_read'     => false,
+        ]);
     }
 }
