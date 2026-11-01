@@ -26,7 +26,6 @@ class GuestPortalController extends Controller
             return redirect('/')->with('error', 'This access link is no longer active.');
         }
 
-        // Log the guest in via session
         session(['guest_stay_id' => $stay->id]);
 
         return redirect()->route('guest.dashboard')
@@ -61,19 +60,17 @@ class GuestPortalController extends Controller
     {
         $stay = Stay::find(session('guest_stay_id'));
 
+        // 1. Validate the form (Department removed)
         $validated = $request->validate([
             'title'       => 'required|string|max:150',
             'description' => 'nullable|string',
-            'department'  => 'required|in:Housekeeping,Maintenance,Front Desk,IT',
         ]);
 
-        // Generate a UNIQUE request code
-        // Find the highest numeric code currently in the table
+        // 2. Generate a UNIQUE request code
         $lastCode = ServiceRequest::selectRaw("MAX(CAST(SUBSTR(request_code, 5) AS INTEGER)) as max_num")
             ->value('max_num');
         $nextNumber = ($lastCode ?? 0) + 1;
 
-        // Loop in case of rare collision (defensive)
         do {
             $newCode = 'REQ-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
             $exists = ServiceRequest::where('request_code', $newCode)->exists();
@@ -82,16 +79,17 @@ class GuestPortalController extends Controller
             }
         } while ($exists);
 
+        // 3. Create the request (Department is "Unassigned")
         $serviceRequest = ServiceRequest::create([
             'request_code' => $newCode,
             'stay_id'      => $stay->id,
             'title'        => $validated['title'],
             'description'  => $validated['description'] ?? null,
-            'department'   => $validated['department'],
+            'department'   => 'Unassigned', 
             'status'       => 'pending',
         ]);
 
-        // Notify front desk + supervisor
+        // 4. Notify Front Desk only (Supervisors don't need to see it until Front Desk routes it)
         Notification::create([
             'type'        => 'request',
             'title'       => 'New Guest Request',
@@ -100,24 +98,17 @@ class GuestPortalController extends Controller
             'is_read'     => false,
         ]);
 
-        Notification::create([
-            'type'        => 'request',
-            'title'       => 'New Request in Queue',
-            'message'     => "Room {$stay->room->room_number} · {$validated['department']} · {$validated['title']}",
-            'target_role' => 'supervisor',
-            'is_read'     => false,
-        ]);
-        // Notify the guest that their request was received
+        // 5. Notify the guest that their request was received
         Notification::create([
             'type'        => 'request',
             'title'       => 'Request Received',
-            'message'     => "Your request \"{$validated['title']}\" has been received and is being processed.",
+            'message'     => "Your request \"{$validated['title']}\" has been received and is being reviewed by the Front Desk.",
             'target_role' => 'guest',
             'is_read'     => false,
         ]);
 
         return redirect()->route('guest.dashboard')
-            ->with('success', "Request submitted! Our team will handle it shortly.");
+            ->with('success', "Request submitted! The Front Desk will review it shortly.");
     }
 
     /* ============================================================
@@ -130,8 +121,9 @@ class GuestPortalController extends Controller
 
         return view('guest.my_requests', compact('requests'));
     }
-        /* ============================================================
-     |  MY STAY (full stay details)
+
+    /* ============================================================
+     |  MY STAY
      ============================================================ */
     public function myStay()
     {
@@ -139,7 +131,7 @@ class GuestPortalController extends Controller
             ->find(session('guest_stay_id'));
 
         $totalRequests = $stay->serviceRequests->count();
-        $completedRequests = $stay->serviceRequests->where('status', 'completed')->count();
+        $completedRequests = $stay->serviceRequests->whereIn('status', ['completed', 'resolved'])->count();
 
         $daysRemaining = max(0, now()->startOfDay()->diffInDays(
             $stay->check_out_date->startOfDay(), false
@@ -183,7 +175,7 @@ class GuestPortalController extends Controller
     }
 
     /* ============================================================
-     |  SUBMIT REVIEW (on check-out day)
+     |  SUBMIT REVIEW
      ============================================================ */
     public function reviewForm()
     {
@@ -213,7 +205,6 @@ class GuestPortalController extends Controller
             'comment'  => $validated['comment'] ?? null,
         ]);
 
-        // Notify front desk
         Notification::create([
             'type'        => 'review',
             'title'       => 'New Guest Review',
@@ -233,49 +224,5 @@ class GuestPortalController extends Controller
     {
         session()->forget('guest_stay_id');
         return redirect('/')->with('success', 'You have been logged out.');
-    }
-
-        /* ============================================================
-     |  Guest confirms the service is done
-     ============================================================ */
-    public function confirmRequest(\App\Models\ServiceRequest $serviceRequest)
-    {
-        $stay = Stay::find(session('guest_stay_id'));
-
-        if ($serviceRequest->stay_id !== $stay->id) {
-            abort(403);
-        }
-
-        if ($serviceRequest->status !== 'completed') {
-            return back()->with('error', 'This request is not pending confirmation.');
-        }
-
-        $serviceRequest->confirmByGuest();
-
-        return back()->with('success', 'Thank you for confirming! We\'re glad it\'s resolved. ⭐');
-    }
-
-    /* ============================================================
-     |  Guest reports it's NOT resolved
-     ============================================================ */
-    public function rejectRequest(Request $request, \App\Models\ServiceRequest $serviceRequest)
-    {
-        $stay = Stay::find(session('guest_stay_id'));
-
-        if ($serviceRequest->stay_id !== $stay->id) {
-            abort(403);
-        }
-
-        if ($serviceRequest->status !== 'completed') {
-            return back()->with('error', 'This request is not pending confirmation.');
-        }
-
-        $validated = $request->validate([
-            'reason' => 'nullable|string|max:500',
-        ]);
-
-        $serviceRequest->rejectByGuest($validated['reason'] ?? null);
-
-        return back()->with('success', 'We\'ve notified our team. Someone will follow up shortly.');
     }
 }

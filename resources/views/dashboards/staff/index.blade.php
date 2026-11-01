@@ -36,15 +36,15 @@
         <div class="stat-card">
             <div class="stat-icon orange">📅</div>
             <div class="stat-info">
-                <h3>{{ $stats['completed_week'] }}</h3>
-                <p>This Week</p>
+                <h3>{{ $stats['resolved_week'] }}</h3>
+                <p>Resolved This Week</p>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon grey">🏆</div>
             <div class="stat-info">
-                <h3>{{ $stats['completed_total'] }}</h3>
-                <p>All Time</p>
+                <h3>{{ $stats['resolved_total'] }}</h3>
+                <p>Total Resolved</p>
             </div>
         </div>
     </div>

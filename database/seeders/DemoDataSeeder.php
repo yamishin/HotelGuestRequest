@@ -54,34 +54,80 @@ class DemoDataSeeder extends Seeder
 
             $room->update(['status' => 'occupied']);
 
-            // Create 2-3 service requests per active guest
-            $requests = [
-                ['Extra Towels', 'Housekeeping', 'completed'],
-                ['Wi-Fi not working', 'IT', 'in_progress'],
-                ['Aircon not cooling', 'Maintenance', 'pending'],
-                ['Extra pillows requested', 'Housekeeping', 'assigned'],
-            ];
+            // --- 3. Create workflow requests for this guest ---
+            // We give each guest a different set of statuses so the UI looks fully populated
+            if ($i === 0) { // John Smith
+                $requests = [
+                    ['Extra Towels', 'Housekeeping', 'pending', null], // In Front Desk Inbox
+                    ['Wi-Fi keeps disconnecting', 'IT', 'resolved', 'Replaced the router. Tested and working.'],
+                ];
+            } elseif ($i === 1) { // David Chen
+                $requests = [
+                    ['Aircon not cooling', 'Maintenance', 'assigned', null], // In Staff Tasks
+                    ['Need extra pillows', 'Housekeeping', 'completed', 'Delivered 2 extra pillows.'], // Awaiting Supervisor Review
+                ];
+            } else { // Robert Lim
+                $requests = [
+                    ['Room service dinner', 'Front Desk', 'rejected', 'Kitchen is closed for the night.'], // Rejected
+                    ['Request for a free upgrade', 'Front Desk', 'unavailable', 'Hotel is fully booked.'], // Unavailable
+                    ['Leaking faucet', 'Maintenance', 'in_progress', null], // Staff is currently working on it
+                ];
+            }
 
-            foreach (array_slice($requests, 0, rand(2, 3)) as $j => $req) {
-                // Find a staff member in that department
+            foreach ($requests as $j => $req) {
                 $assignee = \App\Models\User::where('role', 'staff')
                     ->where('department', $req[1])
                     ->first();
 
+                $assignedTo = null;
+                $completedAt = null;
+                $resolvedAt = null;
+                $resolvedBy = null;
+                $routedAt = null;
+                $routedBy = null;
+                $rejectionReason = null;
+
+                if (in_array($req[2], ['assigned', 'in_progress', 'completed', 'resolved'])) {
+                    $assignedTo = $assignee?->id;
+                    $routedAt = now()->subHours(rand(2, 10));
+                    $routedBy = \App\Models\User::where('role', 'frontdesk')->first()?->id;
+                }
+                
+                if (in_array($req[2], ['completed', 'resolved'])) {
+                    $completedAt = now()->subMinutes(rand(10, 60));
+                }
+
+                if ($req[2] === 'resolved') {
+                    $resolvedAt = now();
+                    $resolvedBy = \App\Models\User::where('role', 'supervisor')->first()?->id;
+                }
+
+                if (in_array($req[2], ['rejected', 'unavailable'])) {
+                    $routedAt = now()->subHours(rand(1, 5));
+                    $routedBy = \App\Models\User::where('role', 'frontdesk')->first()?->id;
+                    $rejectionReason = $req[3];
+                }
+
                 ServiceRequest::create([
-                    'request_code' => 'REQ-' . str_pad(($i * 3) + $j + 1, 4, '0', STR_PAD_LEFT),
-                    'stay_id'      => $stay->id,
-                    'title'        => $req[0],
-                    'description'  => 'Guest requested ' . strtolower($req[0]),
-                    'department'   => $req[1],
-                    'status'       => $req[2],
-                    'assigned_to'  => ($req[2] === 'pending') ? null : $assignee?->id,
-                    'completed_at' => ($req[2] === 'completed') ? now() : null,
+                    'request_code'     => 'REQ-' . str_pad(($i * 3) + $j + 1, 4, '0', STR_PAD_LEFT),
+                    'stay_id'          => $stay->id,
+                    'title'            => $req[0],
+                    'description'      => 'Guest requested ' . strtolower($req[0]),
+                    'department'       => $req[1],
+                    'status'           => $req[2],
+                    'assigned_to'      => $assignedTo,
+                    'routed_at'        => $routedAt,
+                    'routed_by'        => $routedBy,
+                    'completed_at'     => $completedAt,
+                    'resolved_at'      => $resolvedAt,
+                    'resolved_by'      => $resolvedBy,
+                    'rejection_reason' => $rejectionReason,
+                    'staff_notes'      => $req[3] ?? null,
                 ]);
             }
         }
 
-        // --- 3. Create COMPLETED stays for guests 4 & 5 ---
+        // --- 4. Create COMPLETED stays for guests 4 & 5 ---
         foreach (array_slice($guests, 3, 2) as $i => $guest) {
             $room = Room::where('room_number', $i === 0 ? '702' : '908')->first();
             if (!$room) continue;
@@ -98,7 +144,7 @@ class DemoDataSeeder extends Seeder
             ]);
         }
 
-        // --- 4. Create UPCOMING stay for guest 6 ---
+        // --- 5. Create UPCOMING stay for guest 6 ---
         $room = Room::where('room_number', '1005')->first();
         if ($room && isset($guests[5])) {
             Stay::create([
@@ -111,11 +157,10 @@ class DemoDataSeeder extends Seeder
             ]);
         }
 
-        // --- 5. Create notifications ---
+        // --- 6. Create general notifications ---
         $notifs = [
             ['request', 'New Request', 'Room 1203 requested room service', 'frontdesk'],
             ['check_in', 'Check-in', 'John Smith has checked in to Room 505', 'frontdesk'],
-            ['request', 'Completed', 'Room 803 towels request marked done', 'frontdesk'],
             ['review', 'Review', 'Room 1001 left a 5-star review', 'frontdesk'],
             ['payment', 'Payment', 'Room 702 checked out and settled balance', 'frontdesk'],
         ];

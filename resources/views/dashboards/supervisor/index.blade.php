@@ -20,17 +20,17 @@
     {{-- STATS CARDS --}}
     <div class="stats-grid">
         <div class="stat-card">
-            <div class="stat-icon orange">⏳</div>
+            <div class="stat-icon orange">📥</div>
             <div class="stat-info">
-                <h3>{{ $pendingCount }}</h3>
-                <p>Pending Requests</p>
+                <h3>{{ $routedCount }}</h3>
+                <p>Routed to Dept</p>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-icon grey">👤</div>
             <div class="stat-info">
                 <h3>{{ $assignedCount }}</h3>
-                <p>Assigned</p>
+                <p>Assigned to Staff</p>
             </div>
         </div>
         <div class="stat-card">
@@ -41,10 +41,10 @@
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon grey">✅</div>
+            <div class="stat-icon grey">👀</div>
             <div class="stat-info">
-                <h3>{{ $completedToday }}</h3>
-                <p>Completed Today</p>
+                <h3>{{ $awaitingReview }}</h3>
+                <p>Awaiting Review</p>
             </div>
         </div>
     </div>
@@ -85,7 +85,7 @@
                         </div>
                     </div>
                 @empty
-                    <p style="color: #999; text-align: center; padding: 20px;">No requests yet.</p>
+                    <p style="color: #999; text-align: center; padding: 20px;">No active requests yet.</p>
                 @endforelse
             </div>
         </div>
@@ -123,7 +123,6 @@
 
     {{-- PAGE STYLES --}}
     <style>
-        /* Welcome Banner */
         .welcome-banner {
             background: linear-gradient(135deg, #E84E1B 0%, #ff6b3d 100%);
             color: white;
@@ -144,7 +143,6 @@
             font-size: 0.9rem;
         }
 
-        /* Stats Grid */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -175,7 +173,6 @@
         .stat-info h3 { font-size: 1.5rem; color: #58595B; }
         .stat-info p  { font-size: 0.85rem; color: #888; }
 
-        /* Main Grid */
         .main-grid {
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -185,7 +182,6 @@
             .main-grid { grid-template-columns: 1fr; }
         }
 
-        /* Request Row */
         .req-row {
             display: flex;
             justify-content: space-between;
@@ -203,7 +199,6 @@
         .req-right { text-align: right; flex-shrink: 0; }
         .req-assignee { font-size: 0.75rem; color: #58595B; margin-top: 6px; font-weight: 600; }
 
-        /* Staff Row */
         .staff-row {
             display: flex;
             align-items: center;

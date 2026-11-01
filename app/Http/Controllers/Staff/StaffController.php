@@ -21,29 +21,27 @@ class StaffController extends Controller
         $myTasks = ServiceRequest::where('assigned_to', $user->id)
             ->whereIn('status', ['assigned', 'in_progress'])
             ->with(['stay.guest', 'stay.room'])
-            ->latest()
-            ->take(5)
-            ->get();
+            ->latest()->take(5)->get();
 
         $stats = [
-            'active'         => ServiceRequest::where('assigned_to', $user->id)
+            'active'          => ServiceRequest::where('assigned_to', $user->id)
                 ->whereIn('status', ['assigned', 'in_progress'])->count(),
-            'completed_today'=> ServiceRequest::where('assigned_to', $user->id)
+            'completed_today' => ServiceRequest::where('assigned_to', $user->id)
                 ->where('status', 'completed')
                 ->whereDate('completed_at', today())->count(),
-            'completed_week' => ServiceRequest::where('assigned_to', $user->id)
-                ->where('status', 'completed')
-                ->whereBetween('completed_at', [now()->startOfWeek(), now()->endOfWeek()])
+            'resolved_week'   => ServiceRequest::where('assigned_to', $user->id)
+                ->where('status', 'resolved')
+                ->whereBetween('resolved_at', [now()->startOfWeek(), now()->endOfWeek()])
                 ->count(),
-            'completed_total'=> ServiceRequest::where('assigned_to', $user->id)
-                ->where('status', 'completed')->count(),
+            'resolved_total'  => ServiceRequest::where('assigned_to', $user->id)
+                ->where('status', 'resolved')->count(),
         ];
 
         return view('dashboards.staff.index', compact('user', 'myTasks', 'stats'));
     }
 
-        /* ============================================================
-     |  MY TASKS (assigned + in_progress + completed awaiting guest)
+    /* ============================================================
+     |  MY TASKS
      ============================================================ */
     public function tasks(Request $request)
     {
@@ -52,14 +50,11 @@ class StaffController extends Controller
         $query = ServiceRequest::where('assigned_to', $user->id)
             ->with(['stay.guest', 'stay.room']);
 
-        // Show only active/awaiting/returned, not verified
         if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         } else {
+            // Show all except resolved (which goes to history)
             $query->whereIn('status', ['assigned', 'in_progress', 'completed']);
-            $query->where(function ($q) {
-                $q->whereNull('guest_confirmed_at'); // exclude already-verified
-            });
         }
 
         if ($request->filled('search')) {
@@ -67,9 +62,7 @@ class StaffController extends Controller
             $query->where(function ($q) use ($s) {
                 $q->where('title', 'like', "%{$s}%")
                   ->orWhere('request_code', 'like', "%{$s}%")
-                  ->orWhereHas('stay.room', function ($r) use ($s) {
-                      $r->where('room_number', 'like', "%{$s}%");
-                  });
+                  ->orWhereHas('stay.room', fn($r) => $r->where('room_number', 'like', "%{$s}%"));
             });
         }
 
@@ -79,43 +72,9 @@ class StaffController extends Controller
     }
 
     /* ============================================================
-     |  ALL DEPARTMENT REQUESTS (open requests in my dept)
+     |  START TASK (assigned → in_progress)
      ============================================================ */
-    public function allRequests(Request $request)
-    {
-        $user = Auth::user();
-
-        $query = ServiceRequest::where('department', $user->department)
-            ->with(['stay.guest', 'stay.room', 'assignee']);
-
-        // Filter by status
-        if ($request->filled('status') && $request->status !== 'all') {
-            $query->where('status', $request->status);
-        } else {
-            $query->whereIn('status', ['pending', 'assigned', 'in_progress']);
-        }
-
-        // Search
-        if ($request->filled('search')) {
-            $s = $request->search;
-            $query->where(function ($q) use ($s) {
-                $q->where('title', 'like', "%{$s}%")
-                  ->orWhere('request_code', 'like', "%{$s}%")
-                  ->orWhereHas('stay.room', function ($r) use ($s) {
-                      $r->where('room_number', 'like', "%{$s}%");
-                  });
-            });
-        }
-
-        $requests = $query->latest()->paginate(15)->withQueryString();
-
-        return view('dashboards.staff.all_requests', compact('requests'));
-    }
-
-        /* ============================================================
-     |  UPDATE TASK STATUS
-     ============================================================ */
-    public function updateTaskStatus(Request $request, ServiceRequest $serviceRequest)
+    public function startTask(ServiceRequest $serviceRequest)
     {
         $user = Auth::user();
 
@@ -123,44 +82,94 @@ class StaffController extends Controller
             abort(403, 'This task is not assigned to you.');
         }
 
+        if ($serviceRequest->status !== 'assigned') {
+            return back()->with('error', 'This task cannot be started in its current state.');
+        }
+
+        $serviceRequest->startByStaff();
+
+        return back()->with('success', 'Task started.');
+    }
+
+    /* ============================================================
+     |  COMPLETE TASK (in_progress → completed)
+     ============================================================ */
+    public function completeTask(Request $request, ServiceRequest $serviceRequest)
+    {
+        $user = Auth::user();
+
+        if ($serviceRequest->assigned_to !== $user->id) {
+            abort(403, 'This task is not assigned to you.');
+        }
+
+        if (!in_array($serviceRequest->status, ['in_progress', 'assigned'])) {
+            return back()->with('error', 'This task cannot be completed in its current state.');
+        }
+
         $validated = $request->validate([
-            'status'      => 'required|in:in_progress,completed',
             'staff_notes' => 'nullable|string|max:500',
         ]);
 
-        if ($validated['status'] === 'completed') {
-            $serviceRequest->markCompleted($validated['staff_notes'] ?? null);
+        $serviceRequest->completeByStaff($validated['staff_notes'] ?? null);
 
-            \App\Models\Notification::create([
-                'type'        => 'request',
-                'title'       => 'Task Completed',
-                'message'     => "{$user->name} completed: {$serviceRequest->title} (Room {$serviceRequest->stay->room->room_number})",
-                'target_role' => 'supervisor',
-                'is_read'     => false,
-            ]);
+        return back()->with('success', 'Task marked completed. Awaiting supervisor review.');
+    }
 
-            return back()->with('success', 'Task marked completed. Awaiting guest confirmation.');
+    /* ============================================================
+     |  MARK COULD NOT RESOLVE
+     ============================================================ */
+    public function markUnresolved(Request $request, ServiceRequest $serviceRequest)
+    {
+        $user = Auth::user();
+
+        if ($serviceRequest->assigned_to !== $user->id) {
+            abort(403);
         }
 
-        // in_progress
-        $serviceRequest->updateStatus('in_progress');
-        return back()->with('success', 'Task updated to In Progress.');
+        $validated = $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $serviceRequest->markUnresolvedByStaff($validated['reason']);
+
+        return back()->with('success', 'Supervisor has been notified that this could not be resolved.');
     }
+
     /* ============================================================
-     |  NOTIFICATIONS (staff-targeted)
+     |  ALL DEPARTMENT REQUESTS (peer visibility)
+     ============================================================ */
+    public function allRequests(Request $request)
+    {
+        $user = Auth::user();
+
+        $query = ServiceRequest::where('department', $user->department)
+            ->whereIn('status', ['routed', 'assigned', 'in_progress', 'completed'])
+            ->with(['stay.guest', 'stay.room', 'assignee']);
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('title', 'like', "%{$s}%")
+                  ->orWhere('request_code', 'like', "%{$s}%");
+            });
+        }
+
+        $requests = $query->latest()->paginate(15)->withQueryString();
+        return view('dashboards.staff.all_requests', compact('requests'));
+    }
+
+    /* ============================================================
+     |  NOTIFICATIONS
      ============================================================ */
     public function notifications()
     {
         $user = Auth::user();
-
         $notifications = Notification::where('target_role', 'staff:' . $user->id)
-            ->orWhere(function ($q) use ($user) {
-                $q->where('target_role', 'staff')
-                  ->whereNull('id'); // never matches, just for structure
-            })
-            ->latest()
-            ->paginate(20);
-
+            ->latest()->paginate(20);
         return view('dashboards.staff.notifications', compact('notifications'));
     }
 
@@ -174,37 +183,31 @@ class StaffController extends Controller
     {
         $user = Auth::user();
         Notification::where('target_role', 'staff:' . $user->id)
-            ->where('is_read', false)
-            ->update(['is_read' => true]);
-
+            ->where('is_read', false)->update(['is_read' => true]);
         return back()->with('success', 'All notifications marked as read.');
     }
 
     /* ============================================================
-     |  HISTORY — my completed tasks
+     |  HISTORY — my resolved tasks
      ============================================================ */
     public function history(Request $request)
     {
         $user = Auth::user();
 
         $query = ServiceRequest::where('assigned_to', $user->id)
-            ->where('status', 'completed')
+            ->where('status', 'resolved')
             ->with(['stay.guest', 'stay.room'])
-            ->latest('completed_at');
+            ->latest('resolved_at');
 
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('title', 'like', "%{$s}%")
-                  ->orWhere('request_code', 'like', "%{$s}%")
-                  ->orWhereHas('stay.room', function ($r) use ($s) {
-                      $r->where('room_number', 'like', "%{$s}%");
-                  });
+                  ->orWhere('request_code', 'like', "%{$s}%");
             });
         }
 
         $history = $query->paginate(15)->withQueryString();
-
         return view('dashboards.staff.history', compact('history'));
     }
 
@@ -220,14 +223,11 @@ class StaffController extends Controller
     {
         /** @var \App\Models\User $user */
         $user = Auth::user();
-
         $validated = $request->validate([
             'name'  => 'required|string|max:100',
             'phone' => 'nullable|string|max:30',
         ]);
-
         $user->update($validated);
-
         return back()->with('success', 'Profile updated successfully.');
     }
 
@@ -235,7 +235,6 @@ class StaffController extends Controller
     {
         /** @var \App\Models\User $user */
         $user = Auth::user();
-
         $validated = $request->validate([
             'current_password' => 'required',
             'new_password'     => 'required|string|min:6|confirmed',
@@ -245,10 +244,7 @@ class StaffController extends Controller
             return back()->withErrors(['current_password' => 'Current password is incorrect.']);
         }
 
-        $user->update([
-            'password' => Hash::make($validated['new_password']),
-        ]);
-
+        $user->update(['password' => Hash::make($validated['new_password'])]);
         return back()->with('success', 'Password updated successfully.');
     }
 }

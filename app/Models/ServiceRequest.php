@@ -11,14 +11,19 @@ class ServiceRequest extends Model
 
     protected $fillable = [
         'request_code', 'stay_id', 'title', 'description',
-        'department', 'status', 'assigned_to', 'completed_at',
-        'guest_confirmed_at', 'staff_notes', 'returned_by_guest',
+        'department', 'status', 'assigned_to',
+        'routed_by', 'routed_at', 'rejection_reason',
+        'completed_at', 'staff_notes',
+        'resolved_by', 'resolved_at',
+        'marked_unresolved', 'unresolved_reason',
+        'reassignment_count',
     ];
 
     protected $casts = [
         'completed_at'       => 'datetime',
-        'guest_confirmed_at' => 'datetime',
-        'returned_by_guest'  => 'boolean',
+        'routed_at'          => 'datetime',
+        'resolved_at'        => 'datetime',
+        'marked_unresolved'  => 'boolean',
     ];
 
     /* ============================================================
@@ -35,8 +40,54 @@ class ServiceRequest extends Model
         return $this->belongsTo(User::class, 'assigned_to');
     }
 
+    public function router()
+    {
+        return $this->belongsTo(User::class, 'routed_by');
+    }
+
+    public function resolver()
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
+    }
+
     /* ============================================================
-     |  NOTIFY GUEST
+     |  STATUS LABEL
+     ============================================================ */
+    public function getStatusLabelAttribute(): string
+    {
+        return match ($this->status) {
+            'pending'     => 'Pending Review',
+            'routed'      => 'Routed to Department',
+            'assigned'    => 'Assigned to Staff',
+            'in_progress' => 'In Progress',
+            'completed'   => 'Awaiting Supervisor Review',
+            'resolved'    => 'Resolved ✓',
+            'rejected'    => 'Rejected',
+            'unavailable' => 'Unavailable',
+            default       => ucfirst($this->status),
+        };
+    }
+
+    /* ============================================================
+     |  STATUS COLOR
+     ============================================================ */
+    public function getStatusColorAttribute(): string
+    {
+        return match ($this->status) {
+            'pending'     => 'danger',
+            'routed'      => 'info',
+            'assigned'    => 'info',
+            'in_progress' => 'warning',
+            'completed'   => 'orange',
+            'resolved'    => 'success',
+            'rejected'    => 'grey',
+            'unavailable' => 'grey',
+            default       => 'grey',
+        };
+    }
+
+    /* ============================================================
+     |  NOTIFY GUEST (helper)
      ============================================================ */
     public function notifyGuest(string $title, string $message): void
     {
@@ -50,77 +101,135 @@ class ServiceRequest extends Model
     }
 
     /* ============================================================
-     |  STATUS LABEL
+     |  NOTIFY SUPERVISOR (helper)
      ============================================================ */
-    public function getStatusLabelAttribute(): string
+    public function notifySupervisor(string $title, string $message): void
     {
-        return match ($this->status) {
-            'pending'     => 'Pending',
-            'assigned'    => 'Assigned to Staff',
-            'in_progress' => 'In Progress',
-            'completed'   => $this->guest_confirmed_at ? 'Verified' : 'Awaiting Confirmation',
-            'verified'    => 'Verified ✓',
-            'cancelled'   => 'Cancelled',
-            default       => ucfirst($this->status),
-        };
+        \App\Models\Notification::create([
+            'type'        => 'request',
+            'title'       => $title,
+            'message'     => $message,
+            'target_role' => 'supervisor',
+            'is_read'     => false,
+        ]);
     }
 
     /* ============================================================
-     |  STATUS COLOR
+     |  NOTIFY SPECIFIC STAFF MEMBER (helper)
      ============================================================ */
-    public function getStatusColorAttribute(): string
+    public function notifyStaff(string $title, string $message): void
     {
-        return match ($this->status) {
-            'pending'     => 'danger',
-            'assigned'    => 'info',
-            'in_progress' => 'warning',
-            'completed'   => 'orange',
-            'verified'    => 'success',
-            'cancelled'   => 'grey',
-            default       => 'grey',
-        };
+        if (!$this->assigned_to) return;
+        \App\Models\Notification::create([
+            'type'        => 'request',
+            'title'       => $title,
+            'message'     => $message,
+            'target_role' => 'staff:' . $this->assigned_to,
+            'is_read'     => false,
+        ]);
     }
 
     /* ============================================================
-     |  UPDATE STATUS + NOTIFY GUEST
-     |  (used for 'assigned' and 'in_progress')
+     |  FRONT DESK: Accept + Route to Department
      ============================================================ */
-    public function updateStatus(string $newStatus): void
+    public function acceptByFrontDesk(int $frontDeskId, ?string $department = null): void
     {
-        $oldStatus = $this->status;
-        if ($oldStatus === $newStatus) {
-            return;
-        }
-
         $this->update([
-            'status'       => $newStatus,
-            'completed_at' => $newStatus === 'completed' ? now() : null,
+            'status'      => 'routed',
+            'routed_by'   => $frontDeskId,
+            'routed_at'   => now(),
+            'department'  => $department ?? $this->department,
         ]);
 
-        $title = match ($newStatus) {
-            'assigned'    => 'Request Assigned',
-            'in_progress' => 'Request In Progress',
-            'completed'   => 'Request Completed',
-            'cancelled'   => 'Request Cancelled',
-            default       => 'Request Updated',
-        };
+        $this->notifySupervisor(
+            'Request Routed to Department',
+            "Room {$this->stay->room->room_number} — {$this->title} routed to {$this->department}"
+        );
 
-        $message = match ($newStatus) {
-            'assigned'    => "Your request \"{$this->title}\" has been assigned to a staff member.",
-            'in_progress' => "A staff member is now working on your request: \"{$this->title}\".",
-            'completed'   => "Your request \"{$this->title}\" has been completed. Thank you!",
-            'cancelled'   => "Your request \"{$this->title}\" was cancelled. Please contact the front desk if this was a mistake.",
-            default       => "Your request \"{$this->title}\" status has been updated.",
-        };
-
-        $this->notifyGuest($title, $message);
+        $this->notifyGuest(
+            'Request Accepted',
+            "Your request \"{$this->title}\" has been accepted and sent to {$this->department}."
+        );
     }
 
     /* ============================================================
-     |  STAFF MARKS COMPLETED (with optional notes)
-     |  Notifies guest to CONFIRM + notifies supervisor
+     |  FRONT DESK: Reject
      ============================================================ */
-    public function markCompleted(?string $notes = null): void
+    public function rejectByFrontDesk(int $frontDeskId, string $reason): void
+    {
+        $this->update([
+            'status'           => 'rejected',
+            'routed_by'        => $frontDeskId,
+            'routed_at'        => now(),
+            'rejection_reason' => $reason,
+        ]);
+
+        $this->notifyGuest(
+            'Request Rejected',
+            "Your request \"{$this->title}\" was rejected. Reason: {$reason}"
+        );
+    }
+
+    /* ============================================================
+     |  FRONT DESK: Mark Unavailable
+     ============================================================ */
+    public function markUnavailable(int $frontDeskId, string $reason): void
+    {
+        $this->update([
+            'status'           => 'unavailable',
+            'routed_by'        => $frontDeskId,
+            'routed_at'        => now(),
+            'rejection_reason' => $reason,
+        ]);
+
+        $this->notifyGuest(
+            'Service Unavailable',
+            "Your request \"{$this->title}\" could not be fulfilled. Reason: {$reason}"
+        );
+    }
+
+    /* ============================================================
+     |  SUPERVISOR: Assign to Staff
+     ============================================================ */
+    public function assignToStaff(int $staffId): void
+    {
+        $wasReassignment = $this->assigned_to !== null && $this->assigned_to !== $staffId;
+
+        $this->update([
+            'status'      => 'assigned',
+            'assigned_to' => $staffId,
+        ]);
+
+        if ($wasReassignment) {
+            $this->increment('reassignment_count');
+        }
+
+        $this->notifyStaff(
+            $wasReassignment ? 'Task Reassigned' : 'New Task Assigned',
+            "Room {$this->stay->room->room_number} — {$this->title}"
+        );
+    }
+
+    /* ============================================================
+     |  STAFF: Start Task
+     ============================================================ */
+    public function startByStaff(): void
+    {
+        if ($this->status === 'in_progress') return;
+
+        $this->update(['status' => 'in_progress']);
+
+        $this->notifyGuest(
+            'Service In Progress',
+            "Our staff is now working on: \"{$this->title}\"."
+        );
+    }
+
+    /* ============================================================
+     |  STAFF: Mark Completed (with notes)
+     |  Notifies supervisor for final review. Does NOT notify guest yet.
+     ============================================================ */
+    public function completeByStaff(?string $notes = null): void
     {
         $this->update([
             'status'       => 'completed',
@@ -128,91 +237,97 @@ class ServiceRequest extends Model
             'staff_notes'  => $notes ?? $this->staff_notes,
         ]);
 
-        // Notify guest — awaiting their confirmation
-        \App\Models\Notification::create([
-            'type'        => 'request',
-            'title'       => 'Please Confirm Completion',
-            'message'     => "Your request \"{$this->title}\" has been marked as done. Please confirm if it's resolved.",
-            'target_role' => 'guest',
-            'is_read'     => false,
-        ]);
-
-        // Notify supervisor
-        \App\Models\Notification::create([
-            'type'        => 'request',
-            'title'       => 'Task Awaiting Guest Confirmation',
-            'message'     => "{$this->title} (Room {$this->stay->room->room_number}) awaiting guest confirmation",
-            'target_role' => 'supervisor',
-            'is_read'     => false,
-        ]);
+        $this->notifySupervisor(
+            'Task Awaiting Review',
+            "Room {$this->stay->room->room_number} — {$this->title} completed by staff. Please review."
+        );
     }
 
     /* ============================================================
-     |  GUEST CONFIRMS — service verified
+     |  STAFF: Mark Could Not Resolve
+     |  Sets back to in_progress, flags for supervisor follow-up.
      ============================================================ */
-    public function confirmByGuest(): void
-    {
-        $this->update([
-            'status'             => 'verified',
-            'guest_confirmed_at' => now(),
-            'returned_by_guest'  => false,
-        ]);
-
-        // Notify staff
-        if ($this->assigned_to) {
-            \App\Models\Notification::create([
-                'type'        => 'request',
-                'title'       => 'Guest Confirmed',
-                'message'     => "Room {$this->stay->room->room_number} confirmed: {$this->title}",
-                'target_role' => 'staff:' . $this->assigned_to,
-                'is_read'     => false,
-            ]);
-        }
-
-        // Notify supervisor
-        \App\Models\Notification::create([
-            'type'        => 'request',
-            'title'       => 'Service Verified',
-            'message'     => "Room {$this->stay->room->room_number} confirmed {$this->title} is resolved",
-            'target_role' => 'supervisor',
-            'is_read'     => false,
-        ]);
-    }
-
-    /* ============================================================
-     |  GUEST REJECTS — returns to staff for follow-up
-     ============================================================ */
-    public function rejectByGuest(?string $reason = null): void
+    public function markUnresolvedByStaff(string $reason): void
     {
         $this->update([
             'status'            => 'in_progress',
-            'returned_by_guest' => true,
+            'marked_unresolved' => true,
+            'unresolved_reason' => $reason,
             'completed_at'      => null,
         ]);
 
-        $message = "Room {$this->stay->room->room_number} reports \"{$this->title}\" is NOT resolved.";
-        if ($reason) {
-            $message .= " Reason: {$reason}";
-        }
+        $this->notifySupervisor(
+            'Task Flagged Unresolved',
+            "Room {$this->stay->room->room_number} — {$this->title}: {$reason}"
+        );
+    }
 
-        // Notify staff
-        if ($this->assigned_to) {
-            \App\Models\Notification::create([
-                'type'        => 'request',
-                'title'       => 'Guest Reported Issue',
-                'message'     => $message,
-                'target_role' => 'staff:' . $this->assigned_to,
-                'is_read'     => false,
-            ]);
-        }
-
-        // Notify supervisor
-        \App\Models\Notification::create([
-            'type'        => 'request',
-            'title'       => 'Request Returned by Guest',
-            'message'     => $message,
-            'target_role' => 'supervisor',
-            'is_read'     => false,
+    /* ============================================================
+     |  SUPERVISOR: Confirm Resolved
+     ============================================================ */
+    public function confirmResolved(int $supervisorId): void
+    {
+        $this->update([
+            'status'            => 'resolved',
+            'resolved_by'       => $supervisorId,
+            'resolved_at'       => now(),
+            'marked_unresolved' => false,
         ]);
+
+        $this->notifyGuest(
+            'Request Resolved',
+            "Your request \"{$this->title}\" has been resolved. Thank you!"
+        );
+    }
+
+    /* ============================================================
+     |  SUPERVISOR: Mark Unresolved (send back to staff)
+     ============================================================ */
+    public function markUnresolvedBySupervisor(string $reason): void
+    {
+        $this->update([
+            'status'            => 'in_progress',
+            'marked_unresolved' => true,
+            'unresolved_reason' => $reason,
+            'completed_at'      => null,
+        ]);
+
+        $this->notifyStaff(
+            'Task Returned for Follow-up',
+            "Room {$this->stay->room->room_number} — {$this->title}: {$reason}"
+        );
+    }
+
+    /* ============================================================
+     |  SUPERVISOR: Reassign to Different Staff
+     ============================================================ */
+    public function reassignTo(int $newStaffId, int $supervisorId): void
+    {
+        $oldStaff = $this->assigned_to;
+
+        $this->update([
+            'assigned_to' => $newStaffId,
+            'status'      => 'assigned',
+            'completed_at'=> null,
+        ]);
+
+        $this->increment('reassignment_count');
+
+        $this->notifyStaff(
+            'Task Assigned to You',
+            "Room {$this->stay->room->room_number} — {$this->title} (reassigned)"
+        );
+    }
+
+    /* ============================================================
+     |  LEGACY COMPATIBILITY — deprecated but kept to avoid
+     |  breaking old code paths (calls will be silently ignored
+     |  if status doesn't match)
+     ============================================================ */
+    public function updateStatus(string $newStatus): void
+    {
+        // Kept for backward compatibility — new code uses the
+        // explicit methods above (acceptByFrontDesk, assignToStaff, etc.)
+        $this->update(['status' => $newStatus]);
     }
 }

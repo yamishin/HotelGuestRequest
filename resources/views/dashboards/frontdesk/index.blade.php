@@ -18,28 +18,28 @@
 
     <div class="stats-grid">
         <div class="stat-card">
-            <div class="stat-icon orange">👤</div>
+            <div class="stat-icon orange"><i class="fa-solid fa-user-plus"></i></div>
             <div class="stat-info">
                 <h3>{{ $checkInsToday }}</h3>
                 <p>Check-ins Today</p>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon grey">🚪</div>
+            <div class="stat-icon grey"><i class="fa-solid fa-door-open"></i></div>
             <div class="stat-info">
                 <h3>{{ $checkOutsToday }}</h3>
                 <p>Check-outs Today</p>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon orange">🛎️</div>
+            <div class="stat-icon orange"><i class="fa-solid fa-inbox"></i></div>
             <div class="stat-info">
-                <h3>{{ $pendingRequests }}</h3>
-                <p>Pending Requests</p>
+                <h3>{{ $pendingInbox }}</h3>
+                <p>Pending Inbox</p>
             </div>
         </div>
         <div class="stat-card">
-            <div class="stat-icon grey">🏠</div>
+            <div class="stat-icon grey"><i class="fa-solid fa-hotel"></i></div>
             <div class="stat-info">
                 <h3>{{ $activeStays }} / {{ $totalRooms }}</h3>
                 <p>Active Stays</p>
@@ -52,10 +52,10 @@
             <div class="card">
                 <h3 class="card-title">Quick Actions</h3>
                 <div class="quick-actions">
-                    <a href="{{ route('frontdesk.check_in.form') }}" class="action-btn">➕ Check-in Guest</a>
-                    <a href="{{ route('frontdesk.notifications') }}" class="action-btn">🔔 View Notifications</a>
-                    <a href="{{ route('frontdesk.rooms') }}" class="action-btn">🏠 View All Rooms</a>
-                    <a href="{{ route('frontdesk.guests_stays') }}" class="action-btn">🔍 Guest Lookup</a>
+                    <a href="{{ route('frontdesk.check_in.form') }}" class="action-btn"><i class="fa-solid fa-plus"></i> Check-in Guest</a>
+                    <a href="{{ route('frontdesk.inbox') }}" class="action-btn"><i class="fa-solid fa-inbox"></i> Request Inbox</a>
+                    <a href="{{ route('frontdesk.rooms') }}" class="action-btn"><i class="fa-solid fa-bed"></i> View All Rooms</a>
+                    <a href="{{ route('frontdesk.guests_stays') }}" class="action-btn"><i class="fa-solid fa-magnifying-glass"></i> Guest Lookup</a>
                 </div>
             </div>
 
@@ -90,14 +90,19 @@
                     @forelse ($recentActivity as $notif)
                         <li>
                             <div class="activity-icon {{ $notif->is_read ? 'grey' : 'orange' }}">
-                                {{ match($notif->type) {
-                                    'request'  => '🛎️',
-                                    'check_in' => '👤',
-                                    'check_out'=> '🚪',
-                                    'review'   => '⭐',
-                                    'payment'  => '💰',
-                                    default    => '🔔',
-                                } }}
+                                @if($notif->type == 'request')
+                                    <i class="fa-solid fa-bell-concierge"></i>
+                                @elseif($notif->type == 'check_in')
+                                    <i class="fa-solid fa-user-plus"></i>
+                                @elseif($notif->type == 'check_out')
+                                    <i class="fa-solid fa-door-open"></i>
+                                @elseif($notif->type == 'review')
+                                    <i class="fa-solid fa-star"></i>
+                                @elseif($notif->type == 'payment')
+                                    <i class="fa-solid fa-money-bill-wave"></i>
+                                @else
+                                    <i class="fa-solid fa-bell"></i>
+                                @endif
                             </div>
                             <div class="activity-text">
                                 <p>{{ $notif->message }}</p>
@@ -120,13 +125,15 @@
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .stat-card { background: white; padding: 20px; border-radius: 10px; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid #E84E1B; }
         .stat-icon { width: 50px; height: 50px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
-        .stat-icon.orange { background: #fff5f2; } .stat-icon.grey { background: #f4f4f4; }
+        .stat-icon.orange { background: #fff5f2; color: #E84E1B; }
+        .stat-icon.grey { background: #f4f4f4; color: #58595B; }
         .stat-info h3 { font-size: 1.5rem; color: #58595B; }
         .stat-info p { font-size: 0.85rem; color: #888; }
         .main-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
         @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
         .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .action-btn { background: #fafafa; border: 1px solid #eee; padding: 15px; border-radius: 8px; cursor: pointer; font-family: 'Montserrat', sans-serif; font-weight: 600; font-size: 0.85rem; color: #58595B; display: flex; align-items: center; gap: 10px; transition: all 0.3s; text-decoration: none; }
+        .action-btn i { color: #E84E1B; font-size: 1.1rem; }
         .action-btn:hover { background: #fff5f2; border-color: #E84E1B; color: #E84E1B; transform: translateY(-2px); }
         .room-legend { display: flex; gap: 15px; font-size: 0.75rem; color: #666; margin-bottom: 15px; flex-wrap: wrap; }
         .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; }
@@ -139,7 +146,7 @@
         .activity-feed li { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f4f4f4; }
         .activity-feed li:last-child { border-bottom: none; }
         .activity-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
-        .activity-icon.orange { background: #fff5f2; } .activity-icon.grey { background: #f4f4f4; }
+        .activity-icon.orange { background: #fff5f2; color: #E84E1B; } .activity-icon.grey { background: #f4f4f4; color: #58595B; }
         .activity-text p { font-size: 0.85rem; color: #58595B; }
         .activity-text span { font-size: 0.75rem; color: #999; }
     </style>

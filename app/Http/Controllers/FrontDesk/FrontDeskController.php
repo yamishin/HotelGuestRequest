@@ -10,8 +10,6 @@ use App\Models\ServiceRequest;
 use App\Models\Stay;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Endroid\QrCode\QrCode;
-use Endroid\QrCode\Writer\SvgWriter;
 
 class FrontDeskController extends Controller
 {
@@ -22,24 +20,21 @@ class FrontDeskController extends Controller
     {
         $today = now()->toDateString();
 
-        $checkInsToday = Stay::whereDate('check_in_date', $today)->count();
-        $checkOutsToday = Stay::whereDate('check_out_date', $today)->count();
-        $pendingRequests = ServiceRequest::whereIn('status', ['pending', 'assigned', 'in_progress'])->count();
-        $activeStays = Stay::where('status', 'active')->count();
-        $totalRooms = Room::count();
+        $checkInsToday     = Stay::whereDate('check_in_date', $today)->count();
+        $checkOutsToday    = Stay::whereDate('check_out_date', $today)->count();
+        $pendingInbox      = ServiceRequest::where('status', 'pending')->count();
+        $activeStays       = Stay::where('status', 'active')->count();
+        $totalRooms        = Room::count();
 
-        // Room status counts
         $roomCounts = [
-            'available' => Room::where('status', 'available')->count(),
-            'occupied' => Room::where('status', 'occupied')->count(),
-            'cleaning' => Room::where('status', 'cleaning')->count(),
+            'available'   => Room::where('status', 'available')->count(),
+            'occupied'    => Room::where('status', 'occupied')->count(),
+            'cleaning'    => Room::where('status', 'cleaning')->count(),
             'maintenance' => Room::where('status', 'maintenance')->count(),
         ];
 
-        // Sample floor 5 rooms for the mini grid
         $sampleRooms = Room::where('floor', 5)->orderBy('room_number')->get();
 
-        // Recent notifications for activity feed
         $recentActivity = Notification::where('target_role', 'frontdesk')
             ->latest()
             ->take(6)
@@ -48,7 +43,7 @@ class FrontDeskController extends Controller
         return view('dashboards.frontdesk.index', compact(
             'checkInsToday',
             'checkOutsToday',
-            'pendingRequests',
+            'pendingInbox',
             'activeStays',
             'totalRooms',
             'roomCounts',
@@ -58,13 +53,133 @@ class FrontDeskController extends Controller
     }
 
     /* ============================================================
+     |  REQUEST INBOX — pending requests awaiting Front Desk review
+     ============================================================ */
+    public function inbox(Request $request)
+    {
+        $query = ServiceRequest::with(['stay.guest', 'stay.room'])
+            ->where('status', 'pending')
+            ->latest();
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('title', 'like', "%{$s}%")
+                  ->orWhere('request_code', 'like', "%{$s}%")
+                  ->orWhereHas('stay.room', fn($r) => $r->where('room_number', 'like', "%{$s}%"))
+                  ->orWhereHas('stay.guest', function ($g) use ($s) {
+                      $g->where('first_name', 'like', "%{$s}%")
+                        ->orWhere('last_name', 'like', "%{$s}%");
+                  });
+            });
+        }
+
+        $requests = $query->paginate(20)->withQueryString();
+
+        $pendingCount = ServiceRequest::where('status', 'pending')->count();
+
+        return view('dashboards.frontdesk.inbox', compact('requests', 'pendingCount'));
+    }
+
+    /* ============================================================
+     |  MONITOR — all routed / in progress / completed
+     ============================================================ */
+    public function monitor(Request $request)
+    {
+        $query = ServiceRequest::with(['stay.guest', 'stay.room', 'assignee', 'router'])
+            ->whereIn('status', ['routed', 'assigned', 'in_progress', 'completed'])
+            ->latest();
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('department') && $request->department !== 'all') {
+            $query->where('department', $request->department);
+        }
+
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('title', 'like', "%{$s}%")
+                  ->orWhere('request_code', 'like', "%{$s}%")
+                  ->orWhereHas('stay.room', fn($r) => $r->where('room_number', 'like', "%{$s}%"));
+            });
+        }
+
+        $requests = $query->paginate(20)->withQueryString();
+
+        $counts = [
+            'routed'      => ServiceRequest::where('status', 'routed')->count(),
+            'assigned'    => ServiceRequest::where('status', 'assigned')->count(),
+            'in_progress' => ServiceRequest::where('status', 'in_progress')->count(),
+            'completed'   => ServiceRequest::where('status', 'completed')->count(),
+        ];
+
+        return view('dashboards.frontdesk.monitor', compact('requests', 'counts'));
+    }
+
+    /* ============================================================
+     |  ACCEPT + ROUTE
+     ============================================================ */
+    public function acceptRequest(Request $request, ServiceRequest $serviceRequest)
+    {
+        if ($serviceRequest->status !== 'pending') {
+            return back()->with('error', 'This request has already been processed.');
+        }
+
+        $validated = $request->validate([
+            'department' => 'required|in:Housekeeping,Maintenance,IT,Front Desk',
+        ]);
+
+        $serviceRequest->acceptByFrontDesk(auth()->id(), $validated['department']);
+
+        return back()->with('success', "Request accepted and routed to {$validated['department']}.");
+    }
+
+    /* ============================================================
+     |  REJECT
+     ============================================================ */
+    public function rejectRequest(Request $request, ServiceRequest $serviceRequest)
+    {
+        if ($serviceRequest->status !== 'pending') {
+            return back()->with('error', 'This request has already been processed.');
+        }
+
+        $validated = $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $serviceRequest->rejectByFrontDesk(auth()->id(), $validated['reason']);
+
+        return back()->with('success', 'Request rejected. Guest has been notified.');
+    }
+
+    /* ============================================================
+     |  MARK UNAVAILABLE
+     ============================================================ */
+    public function markUnavailable(Request $request, ServiceRequest $serviceRequest)
+    {
+        if ($serviceRequest->status !== 'pending') {
+            return back()->with('error', 'This request has already been processed.');
+        }
+
+        $validated = $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $serviceRequest->markUnavailable(auth()->id(), $validated['reason']);
+
+        return back()->with('success', 'Request marked unavailable. Guest has been notified.');
+    }
+
+    /* ============================================================
      |  GUESTS & STAYS
      ============================================================ */
     public function guestsStays(Request $request)
     {
         $query = Guest::with(['stays.room']);
 
-        // Search
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
@@ -76,12 +191,9 @@ class FrontDeskController extends Controller
             });
         }
 
-        // Filter by status
         if ($request->filled('filter') && $request->filter !== 'all') {
             $filter = $request->filter;
-            $query->whereHas('stays', function ($q) use ($filter) {
-                $q->where('status', $filter);
-            });
+            $query->whereHas('stays', fn($q) => $q->where('status', $filter));
         }
 
         $guests = $query->latest()->paginate(15)->withQueryString();
@@ -89,9 +201,6 @@ class FrontDeskController extends Controller
         return view('dashboards.frontdesk.guests_stays', compact('guests'));
     }
 
-    /* ============================================================
-     |  GUEST DETAIL (modal content / standalone page)
-     ============================================================ */
     public function guestDetail(Guest $guest)
     {
         $guest->load(['stays.room', 'stays.serviceRequests', 'reviews']);
@@ -99,49 +208,47 @@ class FrontDeskController extends Controller
     }
 
     /* ============================================================
-     |  CHECK-IN FORM
+     |  CHECK-IN / CHECK-OUT
      ============================================================ */
     public function checkInForm()
     {
         $availableRooms = Room::where('status', 'available')
-            ->orderBy('floor')
-            ->orderBy('room_number')
-            ->get();
+            ->orderBy('floor')->orderBy('room_number')->get();
 
-        $guests = Guest::orderBy('first_name')->get();
-
-        return view('dashboards.frontdesk.check_in', compact('availableRooms', 'guests'));
+        return view('dashboards.frontdesk.check_in', compact('availableRooms'));
     }
 
-    /* ============================================================
-     |  STORE CHECK-IN
-     ============================================================ */
     public function checkInStore(Request $request)
     {
         $validated = $request->validate([
-            'first_name'     => 'required|string|max:100',
-            'last_name'      => 'required|string|max:100',
-            'email'          => 'nullable|email|max:150',
-            'phone'          => 'nullable|string|max:30',
-            'room_id'        => 'required|exists:rooms,id',
-            'check_in_date'  => 'required|date',
-            'check_out_date' => 'required|date|after:check_in_date',
-            'num_guests'     => 'required|integer|min:1|max:10',
+            'first_name'       => 'required|string|max:100',
+            'last_name'        => 'required|string|max:100',
+            'email'            => 'nullable|email|max:150',
+            'phone'            => 'nullable|string|max:30',
+            'room_id'          => 'required|exists:rooms,id',
+            'check_in_date'    => 'required|date',
+            'check_out_date'   => 'required|date|after:check_in_date',
+            'num_guests'       => 'required|integer|min:1|max:10',
             'special_requests' => 'nullable|string',
         ]);
 
-        // Create guest
-        $lastGuest = Guest::orderByDesc('id')->first();
-        $nextId = $lastGuest ? $lastGuest->id + 1 : 1;
+        // Unique guest code
+        $lastGuestCode = Guest::selectRaw("MAX(CAST(SUBSTR(guest_code, 3) AS INTEGER)) as max_num")->value('max_num');
+        $nextGuestNumber = ($lastGuestCode ?? 0) + 1;
+        do {
+            $newGuestCode = 'G-' . str_pad($nextGuestNumber, 4, '0', STR_PAD_LEFT);
+            $exists = Guest::where('guest_code', $newGuestCode)->exists();
+            if ($exists) $nextGuestNumber++;
+        } while ($exists);
+
         $guest = Guest::create([
-            'guest_code' => 'G-' . str_pad($nextId, 4, '0', STR_PAD_LEFT),
+            'guest_code' => $newGuestCode,
             'first_name' => $validated['first_name'],
             'last_name'  => $validated['last_name'],
             'email'      => $validated['email'] ?? null,
             'phone'      => $validated['phone'] ?? null,
         ]);
 
-        // Create stay
         $stay = Stay::create([
             'guest_id'         => $guest->id,
             'room_id'          => $validated['room_id'],
@@ -154,10 +261,8 @@ class FrontDeskController extends Controller
             'special_requests' => $validated['special_requests'] ?? null,
         ]);
 
-        // Update room status
         Room::find($validated['room_id'])->update(['status' => 'occupied']);
 
-        // Create a notification
         Notification::create([
             'type'        => 'check_in',
             'title'       => 'Check-in',
@@ -166,27 +271,18 @@ class FrontDeskController extends Controller
             'is_read'     => false,
         ]);
 
-        // ✅ THIS IS WHERE THE QR REDIRECT GOES
-        // (replaces the old redirect to guests_stays)
         return redirect()
             ->route('frontdesk.qr', $stay)
             ->with('success', "Guest {$guest->full_name} checked in. Print the QR below.");
     }
 
-    /* ============================================================
-     |  CHECK-OUT
-     ============================================================ */
     public function checkOut(Stay $stay)
     {
         if ($stay->status !== 'active') {
             return back()->with('error', 'This stay is not active.');
         }
 
-        $stay->update([
-            'status'            => 'completed',
-            'actual_check_out'  => now(),
-        ]);
-
+        $stay->update(['status' => 'completed', 'actual_check_out' => now()]);
         $stay->room->update(['status' => 'cleaning']);
 
         Notification::create([
@@ -212,8 +308,6 @@ class FrontDeskController extends Controller
         }
 
         $rooms = $query->orderBy('floor')->orderBy('room_number')->get();
-
-        // Group by floor
         $roomsByFloor = $rooms->groupBy('floor');
 
         $roomCounts = [
@@ -226,18 +320,11 @@ class FrontDeskController extends Controller
         return view('dashboards.frontdesk.rooms', compact('roomsByFloor', 'roomCounts'));
     }
 
-    /* ============================================================
-     |  UPDATE ROOM STATUS
-     ============================================================ */
     public function updateRoomStatus(Request $request, Room $room)
     {
-        $request->validate([
-            'status' => 'required|in:available,occupied,cleaning,maintenance',
-        ]);
-
+        $request->validate(['status' => 'required|in:available,occupied,cleaning,maintenance']);
         $room->update(['status' => $request->status]);
-
-        return back()->with('success', "Room {$room->room_number} status updated to {$request->status}.");
+        return back()->with('success', "Room {$room->room_number} status updated.");
     }
 
     /* ============================================================
@@ -246,9 +333,7 @@ class FrontDeskController extends Controller
     public function notifications()
     {
         $notifications = Notification::where('target_role', 'frontdesk')
-            ->latest()
-            ->paginate(20);
-
+            ->latest()->paginate(20);
         return view('dashboards.frontdesk.notifications', compact('notifications'));
     }
 
@@ -261,9 +346,7 @@ class FrontDeskController extends Controller
     public function markAllNotificationsRead()
     {
         Notification::where('target_role', 'frontdesk')
-            ->where('is_read', false)
-            ->update(['is_read' => true]);
-
+            ->where('is_read', false)->update(['is_read' => true]);
         return back()->with('success', 'All notifications marked as read.');
     }
 
@@ -278,16 +361,15 @@ class FrontDeskController extends Controller
 
         if ($request->filled('search')) {
             $s = $request->search;
-            $query->whereHas('guest', function ($q) use ($s) {
-                $q->where('first_name', 'like', "%{$s}%")
-                  ->orWhere('last_name', 'like', "%{$s}%");
-            })->orWhereHas('room', function ($q) use ($s) {
-                $q->where('room_number', 'like', "%{$s}%");
+            $query->where(function ($q) use ($s) {
+                $q->whereHas('guest', fn($g) =>
+                    $g->where('first_name', 'like', "%{$s}%")
+                      ->orWhere('last_name', 'like', "%{$s}%")
+                )->orWhereHas('room', fn($r) => $r->where('room_number', 'like', "%{$s}%"));
             });
         }
 
         $history = $query->paginate(15)->withQueryString();
-
         return view('dashboards.frontdesk.history', compact('history'));
     }
 
@@ -296,39 +378,26 @@ class FrontDeskController extends Controller
      ============================================================ */
     public function reports()
     {
-        $totalRooms = Room::count();
+        $totalRooms    = Room::count();
         $occupiedRooms = Room::where('status', 'occupied')->count();
         $occupancyRate = $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100) : 0;
 
-        $totalStays = Stay::count();
+        $totalStays    = Stay::count();
         $totalRequests = ServiceRequest::count();
+        $avgRating     = round(\App\Models\Review::avg('rating') ?? 0, 1);
 
-        $avgRating = round(\App\Models\Review::avg('rating') ?? 0, 1);
-
-        // Top services
         $topServices = ServiceRequest::selectRaw('title, COUNT(*) as count')
-            ->groupBy('title')
-            ->orderByDesc('count')
-            ->take(5)
-            ->get();
+            ->groupBy('title')->orderByDesc('count')->take(5)->get();
 
-        // Occupancy by floor
-        $occupancyByFloor = Room::selectRaw('floor, 
+        $occupancyByFloor = Room::selectRaw('floor,
                 COUNT(*) as total,
                 SUM(CASE WHEN status = "occupied" THEN 1 ELSE 0 END) as occupied
             ')
-            ->groupBy('floor')
-            ->orderBy('floor')
-            ->get();
+            ->groupBy('floor')->orderBy('floor')->get();
 
         return view('dashboards.frontdesk.reports', compact(
-            'occupancyRate',
-            'totalStays',
-            'totalRequests',
-            'avgRating',
-            'topServices',
-            'occupancyByFloor',
-            'totalRooms'
+            'occupancyRate', 'totalStays', 'totalRequests', 'avgRating',
+            'topServices', 'occupancyByFloor', 'totalRooms'
         ));
     }
 
@@ -339,47 +408,23 @@ class FrontDeskController extends Controller
     {
         return view('dashboards.frontdesk.profile');
     }
-    
-        /* ============================================================
-     |  QR CODE PAGE (shown after check-in)
+
+    /* ============================================================
+     |  QR CODE
      ============================================================ */
-         public function showQr(Stay $stay)
+    public function showQr(Stay $stay)
     {
         $stay->load(['guest', 'room']);
 
-        // Prevent showing QR for completed/inactive stays
         if ($stay->status !== 'active') {
-            return redirect()
-                ->route('frontdesk.guests_stays')
+            return redirect()->route('frontdesk.guests_stays')
                 ->with('error', 'This stay is no longer active — QR code expired.');
         }
 
-        $accessUrl = $this->buildGuestAccessUrl($stay);
+        $host = config('app.guest_access.host', '127.0.0.1');
+        $port = config('app.guest_access.port', 8000);
+        $accessUrl = "http://{$host}:{$port}/g/{$stay->access_token}";
 
         return view('dashboards.frontdesk.qr_code', compact('stay', 'accessUrl'));
     }
-    //     public function showQr(Stay $stay)
-    // {
-    //     $stay->load(['guest', 'room']);
-    //     $accessUrl = route('guest.access', $stay->access_token);
-
-    //     $qrCode = new QrCode($accessUrl);
-    //     $writer = new SvgWriter();
-    //     $result = $writer->write($qrCode);
-    //     $qrSvg = $result->getString();
-
-    //     return view('dashboards.frontdesk.qr_code', compact('stay', 'accessUrl', 'qrSvg'));
-    // }
-
-        /* ============================================================
-     |  HELPER: Build the guest access URL
-     ============================================================ */
-    private function buildGuestAccessUrl(Stay $stay): string
-    {
-        $host = config('app.guest_access.host');
-        $port = config('app.guest_access.port');
-
-        return "http://{$host}:{$port}/g/{$stay->access_token}";
-    }
 }
-

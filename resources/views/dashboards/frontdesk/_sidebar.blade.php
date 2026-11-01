@@ -1,4 +1,6 @@
 <li><a href="{{ route('frontdesk.dashboard') }}" class="{{ request()->routeIs('frontdesk.dashboard') ? 'active' : '' }}"><i class="fa-solid fa-gauge-high"></i> Dashboard</a></li>
+<li><a href="{{ route('frontdesk.inbox') }}" class="{{ request()->routeIs('frontdesk.inbox') ? 'active' : '' }}"><i class="fa-solid fa-inbox"></i> Request Inbox @if(\App\Models\ServiceRequest::where('status', 'pending')->count() > 0)<span class="badge badge-danger" style="margin-left: auto; padding: 2px 6px; font-size: 0.6rem;">{{ \App\Models\ServiceRequest::where('status', 'pending')->count() }}</span>@endif</a></li>
+<li><a href="{{ route('frontdesk.monitor') }}" class="{{ request()->routeIs('frontdesk.monitor') ? 'active' : '' }}"><i class="fa-solid fa-desktop"></i> Monitor Requests</a></li>
 <li><a href="{{ route('frontdesk.guests_stays') }}" class="{{ request()->routeIs('frontdesk.guests_stays') ? 'active' : '' }}"><i class="fa-solid fa-users"></i> Guests & Stays</a></li>
 <li><a href="{{ route('frontdesk.rooms') }}" class="{{ request()->routeIs('frontdesk.rooms') ? 'active' : '' }}"><i class="fa-solid fa-bed"></i> Rooms</a></li>
 <li><a href="{{ route('frontdesk.notifications') }}" class="{{ request()->routeIs('frontdesk.notifications') ? 'active' : '' }}"><i class="fa-solid fa-bell"></i> Notifications</a></li>
