@@ -276,26 +276,59 @@ class FrontDeskController extends Controller
             ->with('success', "Guest {$guest->full_name} checked in. Print the QR below.");
     }
 
-    public function checkOut(Stay $stay)
+        public function checkOut(Stay $stay)
     {
         if ($stay->status !== 'active') {
             return back()->with('error', 'This stay is not active.');
         }
 
+        // 1. Complete the stay
         $stay->update(['status' => 'completed', 'actual_check_out' => now()]);
+
+        // 2. Set room to cleaning
         $stay->room->update(['status' => 'cleaning']);
 
+        // 3. AUTO-GENERATE A HOUSEKEEPING REQUEST
+        // Generate request code
+        $lastCode = ServiceRequest::selectRaw("MAX(CAST(SUBSTR(request_code, 5) AS INTEGER)) as max_num")->value('max_num');
+        $nextNumber = ($lastCode ?? 0) + 1;
+        do {
+            $newCode = 'REQ-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            $exists = ServiceRequest::where('request_code', $newCode)->exists();
+            if ($exists) $nextNumber++;
+        } while ($exists);
+
+        ServiceRequest::create([
+            'request_code' => $newCode,
+            'stay_id'      => $stay->id, // Linked to the checked-out stay
+            'title'        => 'Room Cleaning & Turnover',
+            'description'  => "Guest checked out. Room {$stay->room->room_number} needs to be cleaned before the next guest.",
+            'department'   => 'Housekeeping',
+            'status'       => 'routed', // Skips Front Desk review, goes straight to Supervisor
+            'routed_by'    => auth()->id(),
+            'routed_at'    => now(),
+        ]);
+
+        // Notify Front Desk
         Notification::create([
             'type'        => 'check_out',
             'title'       => 'Check-out',
-            'message'     => "{$stay->guest->full_name} has checked out of Room {$stay->room->room_number}",
+            'message'     => "{$stay->guest->full_name} checked out. Room {$stay->room->room_number} is set to cleaning.",
             'target_role' => 'frontdesk',
             'is_read'     => false,
         ]);
 
-        return back()->with('success', "Guest checked out of Room {$stay->room->room_number}.");
-    }
+        // Notify Supervisor
+        Notification::create([
+            'type'        => 'request',
+            'title'       => 'Housekeeping Task Routed',
+            'message'     => "Room {$stay->room->room_number} requires cleaning.",
+            'target_role' => 'supervisor',
+            'is_read'     => false,
+        ]);
 
+        return back()->with('success', "Guest checked out. A cleaning request has been sent to Housekeeping.");
+    }
     /* ============================================================
      |  ROOMS
      ============================================================ */

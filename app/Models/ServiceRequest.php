@@ -265,7 +265,7 @@ class ServiceRequest extends Model
     /* ============================================================
      |  SUPERVISOR: Confirm Resolved
      ============================================================ */
-    public function confirmResolved(int $supervisorId): void
+        public function confirmResolved(int $supervisorId): void
     {
         $this->update([
             'status'            => 'resolved',
@@ -273,6 +273,11 @@ class ServiceRequest extends Model
             'resolved_at'       => now(),
             'marked_unresolved' => false,
         ]);
+
+        // AUTO-UPDATE ROOM STATUS IF IT WAS A CLEANING REQUEST
+        if ($this->title === 'Room Cleaning & Turnover' && $this->stay->room) {
+            $this->stay->room->update(['status' => 'available']);
+        }
 
         $this->notifyGuest(
             'Request Resolved',
