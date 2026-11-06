@@ -178,8 +178,6 @@
     <header class="hero">
         <h1>Welcome to <br> <span>Swiss-Belhotel Blulane</span></h1>
         <p>Manage your guest requests efficiently and enhance the hospitality experience in Chinatown, Manila.</p>
-        
-        <a href="/login" class="cta-button">Make a Request</a>
     </header>
 
     <footer>

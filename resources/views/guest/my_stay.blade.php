@@ -15,7 +15,7 @@
                 <strong>{{ $stay->check_in_date->format('M d, Y') }}</strong>
                 <small>{{ $stay->check_in_date->format('l') }}</small>
             </div>
-            <div class="hero-arrow">→</div>
+            <div class="hero-arrow"><i class="fa-solid fa-arrow-right"></i></div>
             <div class="hero-date">
                 <span>Check-out</span>
                 <strong>{{ $stay->check_out_date->format('M d, Y') }}</strong>
@@ -67,14 +67,14 @@
     <div class="card">
         <h3 class="card-title">Room Amenities</h3>
         <div class="amenities-grid">
-            <div class="amenity">📶 Free Wi-Fi</div>
-            <div class="amenity">❄️ Air Conditioning</div>
-            <div class="amenity">📺 Smart TV</div>
-            <div class="amenity">🚿 Hot Shower</div>
-            <div class="amenity">☕ Coffee & Tea</div>
-            <div class="amenity">🧴 Toiletries</div>
-            <div class="amenity">🧺 Laundry Service</div>
-            <div class="amenity">🛎️ 24/7 Room Service</div>
+            <div class="amenity"><i class="fa-solid fa-wifi" style="color: var(--primary-orange); margin-right: 8px;"></i> Free Wi-Fi</div>
+            <div class="amenity"><i class="fa-solid fa-snowflake" style="color: var(--primary-orange); margin-right: 8px;"></i> Air Conditioning</div>
+            <div class="amenity"><i class="fa-solid fa-tv" style="color: var(--primary-orange); margin-right: 8px;"></i> Smart TV</div>
+            <div class="amenity"><i class="fa-solid fa-shower" style="color: var(--primary-orange); margin-right: 8px;"></i> Hot Shower</div>
+            <div class="amenity"><i class="fa-solid fa-mug-hot" style="color: var(--primary-orange); margin-right: 8px;"></i> Coffee & Tea</div>
+            <div class="amenity"><i class="fa-solid fa-pump-soap" style="color: var(--primary-orange); margin-right: 8px;"></i> Toiletries</div>
+            <div class="amenity"><i class="fa-solid fa-shirt" style="color: var(--primary-orange); margin-right: 8px;"></i> Laundry Service</div>
+            <div class="amenity"><i class="fa-solid fa-bell-concierge" style="color: var(--primary-orange); margin-right: 8px;"></i> 24/7 Room Service</div>
         </div>
     </div>
 
@@ -82,9 +82,9 @@
     <div class="card">
         <h3 class="card-title">Quick Actions</h3>
         <div class="actions-row">
-            <a href="{{ route('guest.request.form') }}" class="btn-primary">🛎️ Request Service</a>
-            <a href="{{ route('guest.my_requests') }}" class="btn-secondary">📋 My Requests</a>
-            <a href="{{ route('guest.hotel_info') }}" class="btn-secondary">ℹ️ Hotel Info</a>
+            <a href="{{ route('guest.request.form') }}" class="btn-primary"><i class="fa-solid fa-bell-concierge"></i> Request Service</a>
+            <a href="{{ route('guest.my_requests') }}" class="btn-secondary"><i class="fa-solid fa-list-check"></i> My Requests</a>
+            <a href="{{ route('guest.hotel_info') }}" class="btn-secondary"><i class="fa-solid fa-circle-info"></i> Hotel Info</a>
         </div>
     </div>
 

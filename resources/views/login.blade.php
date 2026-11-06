@@ -146,7 +146,7 @@
         </form>
 
         <!-- Demo credentials for testing -->
-        <div class="demo-creds">
+        <!-- <div class="demo-creds">
             <p>Demo Accounts (Password: <code>password</code>)</p>
             <ul>
                 <li>Front Desk — <code>frontdesk@blulane.com</code></li>
@@ -155,7 +155,7 @@
                 <li>Staff (Maintenance) — <code>carlos.maintenance@blulane.com</code></li>
                 <li>Staff (IT) — <code>sam.it@blulane.com</code></li>
             </ul>
-        </div>
+        </div> -->
     </div>
 
 </body>

@@ -1,8 +1,8 @@
 @extends('layouts.dashboard')
-@section('title', 'Rooms')
-@section('page-title', 'Room Management')
+@section('title', 'Room Status')
+@section('page-title', 'Room Status')
 @section('user-role', 'FRONT DESK')
-@section('sidebar-menu') @include('dashboards.frontdesk._sidebar') @endsection
+@section('sidebar-menu') @include('dashboards.supervisor._sidebar') @endsection
 
 @section('content')
     <div class="page-header">

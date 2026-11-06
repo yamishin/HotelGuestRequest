@@ -108,10 +108,11 @@ class DemoDataSeeder extends Seeder
                     $rejectionReason = $req[3];
                 }
 
-                ServiceRequest::create([
+                                ServiceRequest::create([
                     'request_code'     => 'REQ-' . str_pad(($i * 3) + $j + 1, 4, '0', STR_PAD_LEFT),
                     'stay_id'          => $stay->id,
                     'title'            => $req[0],
+                    'category'         => $req[0], // 👈 ADD THIS
                     'description'      => 'Guest requested ' . strtolower($req[0]),
                     'department'       => $req[1],
                     'status'           => $req[2],

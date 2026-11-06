@@ -26,9 +26,10 @@ class LoginController extends Controller
             $user = Auth::user();
 
             return match ($user->role) {
-                'frontdesk'  => redirect()->route('frontdesk.dashboard'),
+                'admin'      => redirect()->route('admin.dashboard'),
+                'frontdesk'  => redirect()->route('supervisor.dashboard'), 
                 'supervisor' => redirect()->route('supervisor.dashboard'),
-                'staff'      => redirect()->route('staff.dashboard'),
+                'staff'      => redirect('/'),
                 default      => redirect('/'),
             };
         }

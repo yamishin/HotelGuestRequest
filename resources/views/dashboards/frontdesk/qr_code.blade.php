@@ -1,18 +1,18 @@
 @extends('layouts.dashboard')
 @section('title', 'Guest QR Code')
 @section('page-title', 'Guest QR Code')
-@section('user-role', 'FRONT DESK')
-@section('sidebar-menu') @include('dashboards.frontdesk._sidebar') @endsection
+@section('user-role', 'SUPERVISOR')
+@section('sidebar-menu') @include('dashboards.supervisor._sidebar') @endsection
 
 @section('content')
     <div class="page-header">
         <div>
             <h1>Guest Access QR Code</h1>
-            <p>Print or show this to the guest for their portal access</p>
+            <p>Ask the guest to scan this with their phone camera to access their portal</p>
         </div>
         <div style="display: flex; gap: 10px;">
-            <button onclick="window.print()" class="btn-primary">🖨️ Print</button>
-            <a href="{{ route('frontdesk.guests_stays') }}" class="btn-secondary">← Back to Guests</a>
+            <button onclick="window.print()" class="btn-secondary"><i class="fa-solid fa-print"></i> Optional: Print</button>
+            <a href="{{ route('supervisor.guests_stays') }}" class="btn-secondary"><i class="fa-solid fa-arrow-left"></i> Back to Guests</a>
         </div>
     </div>
 
@@ -30,7 +30,7 @@
         </div>
 
         <div class="qr-image-wrapper">
-            {!! QrCode::size(260)->margin(1)->generate($accessUrl) !!}
+            <div id="qrcode"></div>
         </div>
 
         <div class="qr-instructions">
@@ -43,11 +43,24 @@
         </div>
 
         <div class="qr-footer">
-            <p style="font-size: 0.75rem; color: #999;">
-                This link is valid only during your stay · {{ $accessUrl }}
+            <p style="font-size: 0.75rem; color: #999; word-break: break-all;">
+                Valid only during stay · {{ $accessUrl }}
             </p>
         </div>
     </div>
+
+    <!-- QR Code Library (loaded from CDN — no Composer needed) -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+        new QRCode(document.getElementById("qrcode"), {
+            text: "{{ $accessUrl }}",
+            width: 260,
+            height: 260,
+            colorDark: "#58595B",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    </script>
 
     <style>
         .qr-card { background: white; max-width: 550px; margin: 0 auto; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); text-align: center; }
@@ -58,6 +71,7 @@
         .info-row:last-child { border-bottom: none; }
         .info-row span { color: #888; }
         .qr-image-wrapper { padding: 20px; background: #fafafa; border-radius: 12px; display: inline-block; margin: 15px 0; }
+        #qrcode { display: inline-block; }
         .qr-instructions { text-align: left; background: #fff9f6; border-left: 4px solid #E84E1B; padding: 20px; border-radius: 8px; margin-top: 25px; }
         .qr-instructions h3 { font-size: 0.95rem; color: #58595B; margin-bottom: 12px; }
         .qr-instructions ol { padding-left: 20px; font-size: 0.85rem; color: #666; line-height: 1.8; }

@@ -335,4 +335,31 @@ class ServiceRequest extends Model
         // explicit methods above (acceptByFrontDesk, assignToStaff, etc.)
         $this->update(['status' => $newStatus]);
     }
+
+        /* ============================================================
+     |  AUTO-DETECT DEPARTMENT (For Front Desk Forwarding)
+     ============================================================ */
+    public function getSuggestedDepartmentAttribute(): string
+    {
+        // If the guest already selected a department, use it
+        if ($this->department && $this->department !== 'Unassigned') {
+            return $this->department;
+        }
+
+        $title = strtolower($this->title);
+
+        if (str_contains($title, 'wifi') || str_contains($title, 'wi-fi') || str_contains($title, 'tv') || str_contains($title, 'telephone') || str_contains($title, 'internet')) {
+            return 'IT';
+        }
+        
+        if (str_contains($title, 'ac') || str_contains($title, 'aircon') || str_contains($title, 'plumb') || str_contains($title, 'leak') || str_contains($title, 'electric') || str_contains($title, 'door') || str_contains($title, 'light')) {
+            return 'Maintenance';
+        }
+        
+        if (str_contains($title, 'towel') || str_contains($title, 'pillow') || str_contains($title, 'clean') || str_contains($title, 'toiletries')) {
+            return 'Housekeeping';
+        }
+
+        return 'Front Desk';
+    }
 }

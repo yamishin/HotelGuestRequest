@@ -1,8 +1,8 @@
 @extends('layouts.dashboard')
 @section('title', 'Guests & Stays')
 @section('page-title', 'Guests & Stays')
-@section('user-role', 'FRONT DESK')
-@section('sidebar-menu') @include('dashboards.frontdesk._sidebar') @endsection
+@section('user-role', 'SUPERVISOR')
+@section('sidebar-menu') @include('dashboards.supervisor._sidebar') @endsection
 
 @section('content')
     <div class="page-header">
@@ -10,20 +10,20 @@
             <h1>Guests & Stays</h1>
             <p>Unified view of all guests and their current/past stays</p>
         </div>
-        <a href="{{ route('frontdesk.check_in.form') }}" class="btn-primary">➕ Check-in New Guest</a>
+        <a href="{{ route('supervisor.check_in.form') }}" class="btn-primary"><i class="fa-solid fa-user-plus"></i> Check-in New Guest</a>
     </div>
 
     <div class="filter-tabs">
-        <a href="{{ route('frontdesk.guests_stays') }}" class="filter-tab {{ !request('filter') || request('filter') === 'all' ? 'active' : '' }}">All Guests</a>
-        <a href="{{ route('frontdesk.guests_stays', ['filter' => 'active']) }}" class="filter-tab {{ request('filter') === 'active' ? 'active' : '' }}">Currently Staying</a>
-        <a href="{{ route('frontdesk.guests_stays', ['filter' => 'upcoming']) }}" class="filter-tab {{ request('filter') === 'upcoming' ? 'active' : '' }}">Upcoming</a>
-        <a href="{{ route('frontdesk.guests_stays', ['filter' => 'completed']) }}" class="filter-tab {{ request('filter') === 'completed' ? 'active' : '' }}">Checked Out</a>
+        <a href="{{ route('supervisor.guests_stays') }}" class="filter-tab {{ !request('filter') || request('filter') === 'all' ? 'active' : '' }}">All Guests</a>
+        <a href="{{ route('supervisor.guests_stays', ['filter' => 'active']) }}" class="filter-tab {{ request('filter') === 'active' ? 'active' : '' }}">Currently Staying</a>
+        <a href="{{ route('supervisor.guests_stays', ['filter' => 'upcoming']) }}" class="filter-tab {{ request('filter') === 'upcoming' ? 'active' : '' }}">Upcoming</a>
+        <a href="{{ route('supervisor.guests_stays', ['filter' => 'completed']) }}" class="filter-tab {{ request('filter') === 'completed' ? 'active' : '' }}">Checked Out</a>
     </div>
 
     <div class="card">
         <form method="GET" class="search-bar">
             <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by name, email, phone, or guest code...">
-            <button type="submit" class="btn-secondary">Search</button>
+            <button type="submit" class="btn-secondary"><i class="fa-solid fa-magnifying-glass"></i> Search</button>
         </form>
 
         <table class="data-table">
@@ -76,12 +76,11 @@
                                 <span class="badge badge-grey">New Guest</span>
                             @endif
                         </td>
-                                                <td>
-                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                                <a href="{{ route('frontdesk.guest_detail', $guest) }}" class="btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; text-decoration: none;">View</a>
+                        <td>
+                            <div style="display: flex; gap: 6px;">
+                                <a href="{{ route('supervisor.guest_detail', $guest) }}" class="btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; text-decoration: none;"><i class="fa-solid fa-eye"></i> View</a>
                                 @if ($activeStay)
-                                    <a href="{{ route('frontdesk.qr', $activeStay) }}" class="btn-secondary" style="padding: 6px 12px; font-size: 0.75rem; text-decoration: none;">📱 QR</a>
-                                    <form method="POST" action="{{ route('frontdesk.check_out', $activeStay) }}" style="display: inline;">
+                                    <form method="POST" action="{{ route('supervisor.check_out', $activeStay) }}" style="display: inline;">
                                         @csrf
                                         <button type="submit" class="btn-primary" style="padding: 6px 12px; font-size: 0.75rem;" onclick="return confirm('Check out {{ $guest->full_name }}?')">Check-out</button>
                                     </form>
@@ -92,7 +91,7 @@
                 @empty
                     <tr>
                         <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
-                            No guests found. <a href="{{ route('frontdesk.check_in.form') }}" style="color: #E84E1B;">Check in a new guest →</a>
+                            No guests found. <a href="{{ route('supervisor.check_in.form') }}" style="color: #E84E1B;">Check in a new guest →</a>
                         </td>
                     </tr>
                 @endforelse

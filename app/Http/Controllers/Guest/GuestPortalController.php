@@ -56,53 +56,60 @@ class GuestPortalController extends Controller
         return view('guest.request');
     }
 
-    public function requestStore(Request $request)
+        public function requestStore(Request $request)
     {
         $stay = Stay::find(session('guest_stay_id'));
 
-        // 1. Validate the form (Department removed)
+        // 1. Validate
         $validated = $request->validate([
-            'title'       => 'required|string|max:150',
-            'description' => 'nullable|string',
+            'department'       => 'required|in:Housekeeping,Maintenance,IT,Front Desk',
+            'category'         => 'nullable|string|max:150',
+            'other_category'   => 'nullable|string|max:150', // If they pick "Other"
+            'description'      => 'nullable|string',
         ]);
 
-        // 2. Generate a UNIQUE request code
-        $lastCode = ServiceRequest::selectRaw("MAX(CAST(SUBSTR(request_code, 5) AS INTEGER)) as max_num")
-            ->value('max_num');
-        $nextNumber = ($lastCode ?? 0) + 1;
+        // 2. Determine the Title (Category or Other)
+        $title = $validated['category'];
+        if ($title === 'Other' && !empty($validated['other_category'])) {
+            $title = $validated['other_category'];
+        } elseif (empty($title)) {
+            $title = $validated['department'] . ' Request'; // Fallback
+        }
 
+        // 3. Generate a UNIQUE request code
+        $lastCode = ServiceRequest::selectRaw("MAX(CAST(SUBSTR(request_code, 5) AS INTEGER)) as max_num")->value('max_num');
+        $nextNumber = ($lastCode ?? 0) + 1;
         do {
             $newCode = 'REQ-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
             $exists = ServiceRequest::where('request_code', $newCode)->exists();
-            if ($exists) {
-                $nextNumber++;
-            }
+            if ($exists) $nextNumber++;
         } while ($exists);
 
-        // 3. Create the request (Department is "Unassigned")
+        // 4. Create the request
         $serviceRequest = ServiceRequest::create([
             'request_code' => $newCode,
             'stay_id'      => $stay->id,
-            'title'        => $validated['title'],
+            'title'        => $title,
+            'category'     => $title, // Store the category
             'description'  => $validated['description'] ?? null,
-            'department'   => 'Unassigned', 
+            'department'   => $validated['department'],
             'status'       => 'pending',
         ]);
 
-        // 4. Notify Front Desk only (Supervisors don't need to see it until Front Desk routes it)
+        // 5. Notify Front Desk
         Notification::create([
             'type'        => 'request',
             'title'       => 'New Guest Request',
-            'message'     => "Room {$stay->room->room_number} requested: {$validated['title']}",
+            'message'     => "Room {$stay->room->room_number} requested: {$title} ({$validated['department']})",
             'target_role' => 'frontdesk',
             'is_read'     => false,
         ]);
 
-        // 5. Notify the guest that their request was received
+        // 6. Notify Guest
         Notification::create([
             'type'        => 'request',
             'title'       => 'Request Received',
-            'message'     => "Your request \"{$validated['title']}\" has been received and is being reviewed by the Front Desk.",
+            'message'     => "Your request \"{$title}\" has been received and is being reviewed by the Front Desk.",
             'target_role' => 'guest',
             'is_read'     => false,
         ]);
@@ -224,5 +231,37 @@ class GuestPortalController extends Controller
     {
         session()->forget('guest_stay_id');
         return redirect('/')->with('success', 'You have been logged out.');
+    }
+
+        /* ============================================================
+     |  CANCEL REQUEST (Guest)
+     ============================================================ */
+    public function cancelRequest(\App\Models\ServiceRequest $serviceRequest)
+    {
+        $stay = Stay::find(session('guest_stay_id'));
+
+        if ($serviceRequest->stay_id !== $stay->id) {
+            abort(403);
+        }
+
+        // Guests can only cancel if it's still pending or routed
+        if (!in_array($serviceRequest->status, ['pending', 'routed'])) {
+            return back()->with('error', 'This request is already being processed and cannot be cancelled. Please call the Front Desk.');
+        }
+
+        $serviceRequest->update([
+            'status' => 'cancelled',
+        ]);
+
+        // Notify Front Desk
+        Notification::create([
+            'type'        => 'request',
+            'title'       => 'Request Cancelled by Guest',
+            'message'     => "Room {$stay->room->room_number} cancelled request: {$serviceRequest->title}",
+            'target_role' => 'frontdesk',
+            'is_read'     => false,
+        ]);
+
+        return back()->with('success', 'Request cancelled successfully.');
     }
 }

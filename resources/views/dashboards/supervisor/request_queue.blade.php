@@ -95,10 +95,13 @@
                     </td>
                     <td style="text-align: right;">
                         <div class="actions-cell" style="display: flex; gap: 5px; justify-content: flex-end;">
+
+                            {{-- 1. VIEW BUTTON --}}
                             <button type="button" class="btn-secondary btn-sm view-btn" data-request-id="{{ $req->id }}" data-request-code="{{ $req->request_code }}" data-request-title="{{ $req->title }}" data-request-desc="{{ $req->description ?? '' }}" data-request-dept="{{ $req->department }}" data-request-status="{{ $req->status_label }}" data-request-status-color="{{ $req->status_color }}" data-request-created="{{ $req->created_at->format('M d, Y · g:i A') }}" data-request-age="{{ $req->created_at->diffForHumans() }}" data-guest-name="{{ $req->stay->guest->full_name ?? 'Unknown' }}" data-guest-code="{{ $req->stay->guest->guest_code ?? '—' }}" data-guest-email="{{ $req->stay->guest->email ?? '—' }}" data-guest-phone="{{ $req->stay->guest->phone ?? '—' }}" data-room-number="{{ $req->stay->room->room_number ?? '—' }}" data-room-floor="{{ $req->stay->room->floor ?? '—' }}" data-stay-checkin="{{ $req->stay->check_in_date->format('M d, Y') }}" data-stay-checkout="{{ $req->stay->check_out_date->format('M d, Y') }}" data-assignee="{{ $req->assignee->name ?? '' }}" data-assignee-dept="{{ $req->assignee->department ?? '' }}" data-completed="{{ $req->completed_at ? $req->completed_at->format('M d, Y · g:i A') : '' }}">
                                 View
                             </button>
 
+                            {{-- 2. ASSIGN BUTTON --}}
                             @if (!$req->assignee)
                             <button type="button" class="btn-primary btn-sm assign-btn" data-request-id="{{ $req->id }}" data-request-title="{{ $req->title }}" data-request-room="{{ $req->stay->room->room_number ?? '—' }}" data-request-dept="{{ $req->department }}">
                                 Assign
@@ -108,6 +111,28 @@
                                 Reassign
                             </button>
                             @endif
+
+                            {{-- 3. PROXY UPDATE BUTTONS (Only if assigned) --}}
+                            @if($req->assignee)
+                            @if($req->status === 'assigned')
+                            <form method="POST" action="{{ route('supervisor.request.proxy_status', $req) }}" style="display:inline;">
+                                @csrf @method('PATCH')
+                                <input type="hidden" name="status" value="in_progress">
+                                <button type="submit" class="btn-secondary btn-sm" style="color: #F57C00; border-color: #F57C00;" title="Mark as In Progress">
+                                    <i class="fa-solid fa-play"></i> Start
+                                </button>
+                            </form>
+                            @elseif($req->status === 'in_progress')
+                            <form method="POST" action="{{ route('supervisor.request.proxy_status', $req) }}" style="display:inline;">
+                                @csrf @method('PATCH')
+                                <input type="hidden" name="status" value="completed">
+                                <button type="submit" class="btn-primary btn-sm" style="background: #4CAF50;" title="Mark as Completed">
+                                    <i class="fa-solid fa-check"></i> Complete
+                                </button>
+                            </form>
+                            @endif
+                            @endif
+
                         </div>
                     </td>
                 </tr>
@@ -126,11 +151,11 @@
     @endif
 </div>
 
-{{-- ASSIGN MODAL --}}
+{{-- ASSIGN/FORWARD MODAL --}}
 <div class="modal-overlay" id="assignModal">
     <div class="modal">
         <div class="modal-header">
-            <h3>Assign Request</h3>
+            <h3>Forward Request</h3>
             <button type="button" class="modal-close" onclick="closeAssignModal()">×</button>
         </div>
         <form method="POST" id="assignForm">
@@ -139,22 +164,30 @@
                 <div class="modal-info">
                     <div class="info-line"><span>Request:</span><strong id="modal-title">—</strong></div>
                     <div class="info-line"><span>Room:</span><strong id="modal-room">—</strong></div>
-                    <div class="info-line"><span>Department:</span><strong id="modal-dept">—</strong></div>
                 </div>
 
-                <label class="modal-label">Assign to Staff Member</label>
-                <select name="assigned_to" required class="modal-select" id="staff-select">
-                    <option value="">-- Choose a staff member --</option>
-                    @foreach ($staff as $s)
-                    <option value="{{ $s->id }}" data-dept="{{ $s->department }}">
-                        {{ $s->name }} — {{ $s->department }}
-                    </option>
-                    @endforeach
+                <label class="modal-label">Forward to Department:</label>
+                <select name="department" required class="modal-select" id="dept-select">
+                    <option value="">-- Choose Department --</option>
+                    <option value="Housekeeping">Housekeeping Supervisor</option>
+                    <option value="Maintenance">Maintenance Supervisor</option>
+                    <option value="IT">IT Supervisor</option>
+                    <option value="Front Desk">Front Desk (Concierge)</option>
                 </select>
+
+                <div style="margin-top: 15px;">
+                    <label class="modal-label">Assign to Staff (Optional):</label>
+                    <select name="assigned_to" class="modal-select">
+                        <option value="">-- Leave unassigned for Supervisor to assign --</option>
+                        @foreach ($staff as $s)
+                        <option value="{{ $s->id }}">{{ $s->name }} ({{ $s->department }})</option>
+                        @endforeach
+                    </select>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn-secondary" onclick="closeAssignModal()">Cancel</button>
-                <button type="submit" class="btn-primary">Assign Request</button>
+                <button type="submit" class="btn-primary">Forward to Supervisor</button>
             </div>
         </form>
     </div>
@@ -1154,5 +1187,24 @@
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') closeViewModal();
     });
+
+
+    function openAssignModal(requestId, title, room, dept) {
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-room').textContent = room;
+
+        // Set the form action to route to the accept route
+        document.getElementById('assignForm').action = '/dashboard/supervisor/requests/' + requestId + '/accept';
+
+        // Auto-select the suggested department
+        const deptSelect = document.getElementById('dept-select');
+        if (dept && dept !== 'Unassigned') {
+            deptSelect.value = dept;
+        } else {
+            deptSelect.value = 'Front Desk'; // Default fallback
+        }
+
+        document.getElementById('assignModal').classList.add('active');
+    }
 </script>
 @endsection

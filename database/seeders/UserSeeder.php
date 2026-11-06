@@ -10,60 +10,77 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-                $users = [
+        $users = [
+            // 1. Front Desk Supervisor (Handles routing + Concierge)
             [
-                'name'       => 'Jane FrontDesk',
-                'email'      => 'frontdesk@blulane.com',
-                'password'   => 'password',
-                'role'       => 'frontdesk',
+                'name' => 'Jane FrontDesk Sup',
+                'email' => 'supervisor.frontdesk@blulane.com',
+                'password' => 'password',
+                'role' => 'supervisor',
                 'department' => 'Front Desk',
-                'phone'      => '+63 917 000 0001',
-                'shift'      => 'morning',
+                'phone' => '+63 917 000 0001',
+                'shift' => 'morning',
             ],
+            // 2. Housekeeping Supervisor
             [
-                'name'       => 'Mark Supervisor',
-                'email'      => 'supervisor@blulane.com',
-                'password'   => 'password',
-                'role'       => 'supervisor',
-                'department' => 'Supervisor',
-                'phone'      => '+63 917 000 0002',
-                'shift'      => 'morning',
-            ],
-            [
-                'name'       => 'Maria Housekeeping',
-                'email'      => 'maria.housekeeping@blulane.com',
-                'password'   => 'password',
-                'role'       => 'staff',
+                'name' => 'Mark Housekeeping Sup',
+                'email' => 'supervisor.housekeeping@blulane.com',
+                'password' => 'password',
+                'role' => 'supervisor',
                 'department' => 'Housekeeping',
-                'phone'      => '+63 917 000 0003',
-                'shift'      => 'morning',
+                'phone' => '+63 917 000 0002',
+                'shift' => 'morning',
             ],
+            // 3. IT Supervisor
             [
-                'name'       => 'Carlos Maintenance',
-                'email'      => 'carlos.maintenance@blulane.com',
-                'password'   => 'password',
-                'role'       => 'staff',
-                'department' => 'Maintenance',
-                'phone'      => '+63 917 000 0004',
-                'shift'      => 'evening',
-            ],
-            [
-                'name'       => 'Sam IT',
-                'email'      => 'sam.it@blulane.com',
-                'password'   => 'password',
-                'role'       => 'staff',
+                'name' => 'Sarah IT Sup',
+                'email' => 'supervisor.it@blulane.com',
+                'password' => 'password',
+                'role' => 'supervisor',
                 'department' => 'IT',
-                'phone'      => '+63 917 000 0005',
-                'shift'      => 'morning',
+                'phone' => '+63 917 000 0007',
+                'shift' => 'morning',
             ],
+            // 4. Maintenance Supervisor
             [
-                'name'       => 'Alice FrontDesk',
-                'email'      => 'alice.frontdesk@blulane.com',
-                'password'   => 'password',
-                'role'       => 'staff',
-                'department' => 'Front Desk',
-                'phone'      => '+63 917 000 0006',
-                'shift'      => 'evening',
+                'name' => 'Victor Maintenance Sup',
+                'email' => 'supervisor.maintenance@blulane.com',
+                'password' => 'password',
+                'role' => 'supervisor',
+                'department' => 'Maintenance',
+                'phone' => '+63 917 000 0008',
+                'shift' => 'morning',
+            ],
+            // 5. Staff (Housekeeping)
+            [
+                'name' => 'Maria Housekeeping',
+                'email' => 'maria.housekeeping@blulane.com',
+                'password' => 'password',
+                'role' => 'staff',
+                'department' => 'Housekeeping',
+                'phone' => '+63 917 000 0003',
+                'shift' => 'morning',
+            ],
+            // 6. Staff (IT)
+            [
+                'name' => 'Sam IT',
+                'email' => 'sam.it@blulane.com',
+                'password' => 'password',
+                'role' => 'staff',
+                'department' => 'IT',
+                'phone' => '+63 917 000 0005',
+                'shift' => 'morning',
+            ],
+
+            // 0. Administrator (General Manager)
+            [
+                'name' => 'Admin User',
+                'email' => 'admin@blulane.com',
+                'password' => 'password',
+                'role' => 'admin',
+                'department' => 'Management',
+                'phone' => '+63 917 000 0000',
+                'shift' => 'morning',
             ],
         ];
 

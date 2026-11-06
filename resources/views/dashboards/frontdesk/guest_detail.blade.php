@@ -1,8 +1,8 @@
 @extends('layouts.dashboard')
 @section('title', $guest->full_name)
 @section('page-title', 'Guest Profile')
-@section('user-role', 'FRONT DESK')
-@section('sidebar-menu') @include('dashboards.frontdesk._sidebar') @endsection
+@section('user-role', 'SUPERVISOR')
+@section('sidebar-menu') @include('dashboards.supervisor._sidebar') @endsection
 
 @section('content')
     <div class="page-header">
@@ -10,7 +10,7 @@
             <h1>{{ $guest->full_name }}</h1>
             <p>Guest ID: {{ $guest->guest_code }}</p>
         </div>
-        <a href="{{ route('frontdesk.guests_stays') }}" class="btn-secondary">← Back to Guests</a>
+        <a href="{{ route('supervisor.guests_stays') }}" class="btn-secondary"><i class="fa-solid fa-arrow-left"></i> Back to Guests</a>
     </div>
 
     <div class="detail-grid">
@@ -34,7 +34,7 @@
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
                         @if ($stay->status === 'active')
-                            <a href="{{ route('frontdesk.qr', $stay) }}" class="btn-primary" style="padding: 6px 12px; font-size: 0.7rem;">📱 QR Code</a>
+                            <a href="{{ route('supervisor.check_in.qr', $stay) }}" class="btn-primary" style="padding: 6px 12px; font-size: 0.7rem;"><i class="fa-solid fa-qrcode"></i> QR Code</a>
                             <span class="badge badge-success">Active</span>
                         @elseif ($stay->status === 'upcoming')
                             <span class="badge badge-info">Upcoming</span>
@@ -81,7 +81,7 @@
                     <div class="detail-row" style="border-bottom: none;">
                         <span>Actions</span>
                         <strong style="display: flex; gap: 8px;">
-                            <a href="{{ route('frontdesk.qr', $activeStay) }}" class="btn-primary" style="padding: 6px 12px; font-size: 0.75rem;">🖨️ Print Full QR</a>
+                            <a href="{{ route('supervisor.check_in.qr', $activeStay) }}" class="btn-primary" style="padding: 6px 12px; font-size: 0.75rem;"><i class="fa-solid fa-print"></i> Print Full QR</a>
                         </strong>
                     </div>
                 </div>
@@ -102,7 +102,7 @@
     @else
         <div class="card" style="margin-top: 20px; background: #f9f9f9;">
             <p style="font-size: 0.85rem; color: #888; text-align: center; padding: 15px;">
-                🔒 No active stay — QR code backup is unavailable.
+                <i class="fa-solid fa-lock"></i> No active stay — QR code backup is unavailable.
             </p>
         </div>
     @endif
