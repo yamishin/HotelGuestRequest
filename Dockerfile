@@ -10,8 +10,9 @@ RUN composer install --no-dev --optimize-autoloader
 RUN sed -i 's/try_files $uri $uri\/ =404;/try_files $uri $uri\/ \/index.php?$query_string;/g' /etc/nginx/sites-available/default.conf && \
     sed -i 's/root \/var\/www\/html;/root \/var\/www\/html\/public;/g' /etc/nginx/sites-available/default.conf
 
-# Force file sessions so login doesn't crash
-RUN php artisan config:cache
+# Enable script execution
+ENV RUN_SCRIPTS 1
+ENV SKIP_COMPOSER 1
 
 ENV WEBROOT /var/www/html/public
 ENV PHP_ERRORS_STDERR 1
