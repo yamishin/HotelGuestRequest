@@ -13,8 +13,10 @@ RUN composer install --no-dev --optimize-autoloader
 RUN sed -i 's/try_files $uri $uri\/ =404;/try_files $uri $uri\/ \/index.php?$query_string;/g' /etc/nginx/sites-available/default.conf && \
     sed -i 's/root \/var\/www\/html;/root \/var\/www\/html\/public;/g' /etc/nginx/sites-available/default.conf
 
-# 🔥 THE MISSING LINE: Make the deploy script executable
-RUN chmod +x 00-laravel-deploy.sh
+# 🔥 THE REAL FIX: Run migrations and seed directly during the build
+# We use '|| true' so if the tables already exist, the build doesn't crash
+RUN php artisan migrate --force || true
+RUN php artisan db:seed --force || true
 
 # Image config
 ENV WEBROOT /var/www/html/public
