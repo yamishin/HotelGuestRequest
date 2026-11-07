@@ -10,10 +10,6 @@ RUN composer install --no-dev --optimize-autoloader
 RUN sed -i 's/try_files $uri $uri\/ =404;/try_files $uri $uri\/ \/index.php?$query_string;/g' /etc/nginx/sites-available/default.conf && \
     sed -i 's/root \/var\/www\/html;/root \/var\/www\/html\/public;/g' /etc/nginx/sites-available/default.conf
 
-# 🔥 THE REAL FIX: Run migrations and seed DURING the build
-RUN php artisan migrate --force || true
-RUN php artisan db:seed --force || true
-
 # Image config
 ENV WEBROOT /var/www/html/public
 ENV PHP_ERRORS_STDERR 1
@@ -23,4 +19,5 @@ ENV APP_DEBUG false
 ENV LOG_CHANNEL stderr
 ENV COMPOSER_ALLOW_SUPERUSER 1
 
-CMD ["/start.sh"]
+# 🔥 THE FIX: Override the default start command to run migrations FIRST, then start the server
+CMD php artisan migrate:fresh --force && php artisan db:seed --force && /start.sh
