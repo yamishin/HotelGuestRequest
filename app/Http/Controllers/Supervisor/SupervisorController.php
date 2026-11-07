@@ -495,11 +495,11 @@ class SupervisorController extends Controller
     public function showQr(\App\Models\Stay $stay)
     {
         if (auth()->user()->department !== 'Front Desk') abort(403);
+
         $stay->load(['guest', 'room']);
 
-        $host = config('app.guest_access.host', '127.0.0.1');
-        $port = config('app.guest_access.port', 8000);
-        $accessUrl = "http://{$host}:{$port}/g/{$stay->access_token}";
+        // This automatically uses your Render URL in production
+        $accessUrl = url('/g/' . $stay->access_token);
 
         return view('dashboards.frontdesk.qr_code', compact('stay', 'accessUrl'));
     }

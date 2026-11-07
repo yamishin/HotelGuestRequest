@@ -19,5 +19,4 @@ ENV APP_DEBUG false
 ENV LOG_CHANNEL stderr
 ENV COMPOSER_ALLOW_SUPERUSER 1
 
-# 🔥 THE FIX: Override the default start command to run migrations FIRST, then start the server
 CMD php artisan migrate:fresh --force && php artisan db:seed --force && /start.sh
