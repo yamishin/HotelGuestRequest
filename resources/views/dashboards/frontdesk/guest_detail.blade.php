@@ -90,7 +90,7 @@ $accessUrl = url('/g/' . $activeStay->access_token);
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
     new QRCode(document.getElementById("backup-qr"), {
-        text: "http://{{ $host }}:{{ $port }}/g/{{ $activeStay->access_token }}",
+        text: "{{ $accessUrl }}",
         width: 180,
         height: 180,
         colorDark: "#58595B",
