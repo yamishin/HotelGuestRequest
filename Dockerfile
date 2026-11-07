@@ -13,10 +13,13 @@ RUN composer install --no-dev --optimize-autoloader
 RUN sed -i 's/try_files $uri $uri\/ =404;/try_files $uri $uri\/ \/index.php?$query_string;/g' /etc/nginx/sites-available/default.conf && \
     sed -i 's/root \/var\/www\/html;/root \/var\/www\/html\/public;/g' /etc/nginx/sites-available/default.conf
 
-# 🔥 THE REAL FIX: Run migrations and seed directly during the build
-# We use '|| true' so if the tables already exist, the build doesn't crash
+# 🔥 Run migrations and seed directly during the build
 RUN php artisan migrate --force || true
 RUN php artisan db:seed --force || true
+
+# 🔥 CLEAR ROUTE CACHE (This fixes the 500 error on login)
+RUN php artisan route:clear
+RUN php artisan config:clear
 
 # Image config
 ENV WEBROOT /var/www/html/public
@@ -29,6 +32,6 @@ ENV APP_DEBUG false
 ENV LOG_CHANNEL stderr
 
 # Allow composer to run as root
-ENV COMPOSER_ALLOW_SUPERUSER 1
+ENV ENV COMPOSER_ALLOW_SUPERUSER 1
 
 CMD ["/start.sh"]
