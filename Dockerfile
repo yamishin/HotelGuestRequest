@@ -9,6 +9,12 @@ WORKDIR /var/www/html
 # Install Composer dependencies
 RUN composer install --no-dev --optimize-autoloader
 
+# CLEAR THE ROUTE CACHE DURING BUILD
+# This fixes the 404 error on Render
+RUN php artisan route:clear
+RUN php artisan config:clear
+RUN php artisan view:clear
+
 # Image config
 ENV WEBROOT /var/www/html/public
 ENV PHP_ERRORS_STDERR 1
