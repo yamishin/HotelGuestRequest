@@ -9,11 +9,9 @@ WORKDIR /var/www/html
 # Install Composer dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# CLEAR THE ROUTE CACHE DURING BUILD
-# This fixes the 404 error on Render
-RUN php artisan route:clear
-RUN php artisan config:clear
-RUN php artisan view:clear
+# 🔥 THE CRITICAL FIX: Overwrite Nginx config to include try_files
+RUN sed -i 's/try_files $uri $uri\/ =404;/try_files $uri $uri\/ \/index.php?$query_string;/g' /etc/nginx/sites-available/default.conf && \
+    sed -i 's/root \/var\/www\/html;/root \/var\/www\/html\/public;/g' /etc/nginx/sites-available/default.conf
 
 # Image config
 ENV WEBROOT /var/www/html/public
