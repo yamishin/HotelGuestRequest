@@ -15,5 +15,5 @@ php artisan route:clear
 echo "Running migrations..."
 php artisan migrate --force
 
-echo "Seeding the database (if empty)..."
+echo "Seeding the database..."
 php artisan db:seed --force
