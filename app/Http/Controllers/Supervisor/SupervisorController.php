@@ -53,14 +53,14 @@ class SupervisorController extends Controller
     /* ============================================================
      |  REQUEST QUEUE
      ============================================================ */
-        public function requestQueue(Request $request)
+    public function requestQueue(Request $request)
     {
         $dept = auth()->user()->department;
         $query = ServiceRequest::with(['stay.guest', 'stay.room', 'assignee', 'router']);
 
         if ($dept === 'Front Desk') {
-            // 1. Front Desk ONLY sees 'pending' requests (Inbox)
-            // 2. OR requests that belong to 'Front Desk' AND are in progress
+            // Front Desk ONLY sees 'pending' requests (Inbox)
+            // OR requests that belong to 'Front Desk' AND are in progress
             $query->where(function($q) {
                 $q->where('status', 'pending')
                   ->orWhere(function($q2) {
@@ -69,7 +69,7 @@ class SupervisorController extends Controller
                   });
             });
         } else {
-            // 3. Department Supervisors (IT, Housekeeping, etc.) ONLY see their own department's requests
+            // Department Supervisors only see their own department's requests
             $query->where('department', $dept)
                   ->whereIn('status', ['routed', 'assigned', 'in_progress']);
         }
@@ -126,34 +126,49 @@ class SupervisorController extends Controller
         return back()->with('success', 'Request marked unavailable.');
     }
 
+    /* ============================================================
+     |  ASSIGN / FORWARD / REASSIGN
+     ============================================================ */
     public function assign(Request $request, ServiceRequest $serviceRequest)
     {
-        // 1. Check if the user is Front Desk. If not, they can only assign to their own department.
+        // 1. Check permissions
         if (auth()->user()->department !== 'Front Desk' && $serviceRequest->department !== auth()->user()->department) {
             abort(403, 'You do not have permission to assign this request.');
         }
 
-        // 2. Validate the incoming data
+        // 2. Validate (assigned_to is now optional for Front Desk forwarding)
         $validated = $request->validate([
-            'assigned_to' => 'required|exists:users,id',
-            'department'  => 'nullable|in:Housekeeping,Maintenance,IT,Front Desk', // Front desk uses this to route
+            'assigned_to' => 'nullable|exists:users,id',
+            'department'  => 'nullable|in:Housekeeping,Maintenance,IT,Front Desk',
         ]);
 
-        $staff = User::findOrFail($validated['assigned_to']);
-
-        // 3. If the Front Desk is doing the assignment, they might also be routing it to a new department
-        if (auth()->user()->department === 'Front Desk' && !empty($validated['department'])) {
-
-            // If they are assigning it to a staff member from a different department, update the request department
-            if ($serviceRequest->department !== $validated['department']) {
+        // 3. If Front Desk is forwarding, update department and status to 'routed'
+        if (auth()->user()->department === 'Front Desk') {
+            
+            if (!empty($validated['department'])) {
                 $serviceRequest->update(['department' => $validated['department']]);
+            }
+
+            if (!empty($validated['assigned_to'])) {
+                $staff = User::findOrFail($validated['assigned_to']);
+                $serviceRequest->update(['status' => 'routed']); 
+                $serviceRequest->assignToStaff($staff->id);
+                return back()->with('success', "Request forwarded and assigned to {$staff->name}.");
+            } else {
+                $serviceRequest->update(['status' => 'routed']);
+                return back()->with('success', "Request forwarded to {$serviceRequest->department} Supervisor.");
             }
         }
 
-        // 4. Proceed with the assignment
-        $serviceRequest->assignToStaff($staff->id);
-
-        return back()->with('success', "Request successfully assigned to {$staff->name}.");
+        // 4. If a Department Supervisor is assigning to their own staff
+        if (auth()->user()->department !== 'Front Desk') {
+            if (empty($validated['assigned_to'])) {
+                return back()->with('error', 'Please select a staff member to assign.');
+            }
+            $staff = User::findOrFail($validated['assigned_to']);
+            $serviceRequest->assignToStaff($staff->id);
+            return back()->with('success', "Request assigned to {$staff->name}.");
+        }
     }
 
     public function reassign(Request $request, ServiceRequest $serviceRequest)
@@ -171,7 +186,7 @@ class SupervisorController extends Controller
     }
 
     /* ============================================================
-     |  PROXY STATUS UPDATE (Fixed 403 Logic)
+     |  PROXY STATUS UPDATE
      ============================================================ */
     public function proxyUpdateStatus(Request $request, ServiceRequest $serviceRequest)
     {
@@ -504,7 +519,6 @@ class SupervisorController extends Controller
         if (auth()->user()->department !== 'Front Desk') abort(403);
         $stay->load(['guest', 'room']);
 
-        // ✅ FIXED: Dynamically uses the Render URL
         $accessUrl = url('/g/' . $stay->access_token);
 
         return view('dashboards.frontdesk.qr_code', compact('stay', 'accessUrl'));
