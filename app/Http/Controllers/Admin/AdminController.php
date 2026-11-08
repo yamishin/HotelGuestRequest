@@ -4,12 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\ServiceRequest; // 👈 THIS WAS MISSING
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class AdminController extends Controller
 {
-    // Middleware protection (we'll add the route middleware later)
+    // Middleware protection
     public function __construct()
     {
         if (auth()->check() && auth()->user()->role !== 'admin') {
@@ -65,5 +66,41 @@ class AdminController extends Controller
         $user->update(['status' => $newStatus]);
         
         return back()->with('success', "{$user->name} is now {$newStatus}.");
+    }
+
+    /* ============================================================
+     |  GLOBAL REQUEST HISTORY (Admin)
+     ============================================================ */
+    public function history(Request $request)
+    {
+        $query = ServiceRequest::with(['stay.guest', 'stay.room', 'assignee', 'router', 'resolver']);
+
+        // Search
+        if ($request->filled('search')) {
+            $s = $request->search;
+            $query->where(function ($q) use ($s) {
+                $q->where('request_code', 'like', "%{$s}%")
+                  ->orWhere('title', 'like', "%{$s}%")
+                  ->orWhereHas('stay.room', fn($r) => $r->where('room_number', 'like', "%{$s}%"))
+                  ->orWhereHas('stay.guest', function ($g) use ($s) {
+                      $g->where('first_name', 'like', "%{$s}%")
+                        ->orWhere('last_name', 'like', "%{$s}%");
+                  });
+            });
+        }
+
+        // Filter by Status
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        // Filter by Department
+        if ($request->filled('department') && $request->department !== 'all') {
+            $query->where('department', $request->department);
+        }
+
+        $requests = $query->latest()->paginate(15)->withQueryString();
+
+        return view('dashboards.admin.history', compact('requests'));
     }
 }

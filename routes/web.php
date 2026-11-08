@@ -88,4 +88,5 @@ Route::prefix('dashboard/admin')->name('admin.')->middleware('auth')->group(func
     Route::get('/supervisor/create', [\App\Http\Controllers\Admin\AdminController::class, 'createSupervisor'])->name('supervisor.create');
     Route::post('/supervisor', [\App\Http\Controllers\Admin\AdminController::class, 'storeSupervisor'])->name('supervisor.store');
     Route::patch('/user/{user}/toggle-status', [\App\Http\Controllers\Admin\AdminController::class, 'toggleStatus'])->name('user.toggleStatus');
+        Route::get('/history', [\App\Http\Controllers\Admin\AdminController::class, 'history'])->name('history');
 });
