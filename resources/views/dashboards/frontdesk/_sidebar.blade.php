@@ -11,7 +11,7 @@ $isFrontDesk = auth()->user()->department === 'Front Desk';
 <li><a href="{{ route('supervisor.rooms') }}" class="{{ request()->routeIs('supervisor.rooms') ? 'active' : '' }}"><i class="fa-solid fa-bed"></i> Room Status</a></li>
 @endif
 
-<li><a href="{{ route('supervisor.queue') }}" class="{{ request()->routeIs('supervisor.queue') ? 'active' : '' }}"><i class="fa-solid fa-list-check"></i> {{ $isFrontDesk ? 'Inbox & Queue' : 'Request Queue' }}</a></li>
+<li><a href="{{ route('supervisor.queue') }}" class="{{ request()->routeIs('supervisor.queue') ? 'active' : '' }}"><i class="fa-solid fa-inbox"></i> {{ $isFrontDesk ? 'Request Inbox' : 'Request Queue' }}</a></li>
 <li><a href="{{ route('supervisor.awaiting_review') }}" class="{{ request()->routeIs('supervisor.awaiting_review') ? 'active' : '' }}"><i class="fa-solid fa-clipboard-check"></i> Awaiting Review</a></li>
 <li><a href="{{ route('supervisor.staff') }}" class="{{ request()->routeIs('supervisor.staff*') ? 'active' : '' }}"><i class="fa-solid fa-user-group"></i> My Staff</a></li>
 <li><a href="{{ route('supervisor.history') }}" class="{{ request()->routeIs('supervisor.history') ? 'active' : '' }}"><i class="fa-solid fa-clock-rotate-left"></i> History</a></li>

@@ -53,22 +53,25 @@ class SupervisorController extends Controller
     /* ============================================================
      |  REQUEST QUEUE
      ============================================================ */
-    public function requestQueue(Request $request)
+        public function requestQueue(Request $request)
     {
         $dept = auth()->user()->department;
         $query = ServiceRequest::with(['stay.guest', 'stay.room', 'assignee', 'router']);
 
         if ($dept === 'Front Desk') {
-            $query->where(function ($q) {
+            // 1. Front Desk ONLY sees 'pending' requests (Inbox)
+            // 2. OR requests that belong to 'Front Desk' AND are in progress
+            $query->where(function($q) {
                 $q->where('status', 'pending')
-                    ->orWhere(function ($q2) {
-                        $q2->where('department', 'Front Desk')
-                            ->whereIn('status', ['routed', 'assigned', 'in_progress']);
-                    });
+                  ->orWhere(function($q2) {
+                      $q2->where('department', 'Front Desk')
+                         ->whereIn('status', ['routed', 'assigned', 'in_progress']);
+                  });
             });
         } else {
+            // 3. Department Supervisors (IT, Housekeeping, etc.) ONLY see their own department's requests
             $query->where('department', $dept)
-                ->whereIn('status', ['pending', 'routed', 'assigned', 'in_progress']);
+                  ->whereIn('status', ['routed', 'assigned', 'in_progress']);
         }
 
         if ($request->filled('status') && $request->status !== 'all') {
@@ -79,8 +82,8 @@ class SupervisorController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('title', 'like', "%{$s}%")
-                    ->orWhere('request_code', 'like', "%{$s}%")
-                    ->orWhereHas('stay.room', fn($r) => $r->where('room_number', 'like', "%{$s}%"));
+                  ->orWhere('request_code', 'like', "%{$s}%")
+                  ->orWhereHas('stay.room', fn($r) => $r->where('room_number', 'like', "%{$s}%"));
             });
         }
 
