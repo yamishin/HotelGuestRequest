@@ -3,10 +3,11 @@
 @section('page-title', 'Add New Supervisor')
 @section('user-role', 'ADMIN')
 @section('sidebar-menu')
-    <li><a href="{{ route('admin.dashboard') }}"><i class="fa-solid fa-users-gear"></i> Manage Accounts</a></li>
-    <li><a href="{{ route('admin.supervisor.create') }}" class="active"><i class="fa-solid fa-user-plus"></i> Add Supervisor</a></li>
+    <li><a href="{{ route('admin.dashboard') }}" class="{{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"><i class="fa-solid fa-users-gear"></i> Manage Accounts</a></li>
+    <li><a href="{{ route('admin.history') }}" class="{{ request()->routeIs('admin.history') ? 'active' : '' }}"><i class="fa-solid fa-clock-rotate-left"></i> Global History</a></li>
+    <li><a href="{{ route('admin.reports') }}" class="{{ request()->routeIs('admin.reports') ? 'active' : '' }}"><i class="fa-solid fa-chart-pie"></i> Global Reports</a></li>
+    <li><a href="{{ route('admin.supervisor.create') }}" class="{{ request()->routeIs('admin.supervisor.create') ? 'active' : '' }}"><i class="fa-solid fa-user-plus"></i> Add Supervisor</a></li>
 @endsection
-
 @section('content')
     <div class="page-header">
         <div>

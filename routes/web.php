@@ -26,7 +26,7 @@ Route::prefix('guest')->name('guest.')->middleware('guest.stay')->group(function
     Route::get('/review',        [GuestPortalController::class, 'reviewForm'])->name('review.form');
     Route::post('/review',       [GuestPortalController::class, 'reviewStore'])->name('review.store');
     Route::post('/logout',       [GuestPortalController::class, 'logout'])->name('logout');
-        Route::post('/requests/{serviceRequest}/cancel', [GuestPortalController::class, 'cancelRequest'])->name('request.cancel');
+    Route::post('/requests/{serviceRequest}/cancel', [GuestPortalController::class, 'cancelRequest'])->name('request.cancel');
 });
 
 Route::prefix('dashboard/supervisor')->name('supervisor.')->middleware('auth')->group(function () {
@@ -38,7 +38,7 @@ Route::prefix('dashboard/supervisor')->name('supervisor.')->middleware('auth')->
     Route::get('/qr/{stay}', [SupervisorController::class, 'showQr'])->name('check_in.qr');
     Route::get('/guests-stays', [SupervisorController::class, 'guestsStays'])->name('guests_stays');
     Route::get('/rooms', [SupervisorController::class, 'rooms'])->name('rooms');
-        Route::get('/guests-stays/{guest}', [SupervisorController::class, 'guestDetail'])->name('guest_detail');
+    Route::get('/guests-stays/{guest}', [SupervisorController::class, 'guestDetail'])->name('guest_detail');
     Route::post('/check-out/{stay}', [SupervisorController::class, 'checkOut'])->name('check_out');
     Route::get('/requests/{serviceRequest}/print', [SupervisorController::class, 'printTicket'])->name('request.print');
 
@@ -88,5 +88,6 @@ Route::prefix('dashboard/admin')->name('admin.')->middleware('auth')->group(func
     Route::get('/supervisor/create', [\App\Http\Controllers\Admin\AdminController::class, 'createSupervisor'])->name('supervisor.create');
     Route::post('/supervisor', [\App\Http\Controllers\Admin\AdminController::class, 'storeSupervisor'])->name('supervisor.store');
     Route::patch('/user/{user}/toggle-status', [\App\Http\Controllers\Admin\AdminController::class, 'toggleStatus'])->name('user.toggleStatus');
-        Route::get('/history', [\App\Http\Controllers\Admin\AdminController::class, 'history'])->name('history');
+    Route::get('/history', [\App\Http\Controllers\Admin\AdminController::class, 'history'])->name('history');
+    Route::get('/reports', [\App\Http\Controllers\Admin\AdminController::class, 'reports'])->name('reports');
 });

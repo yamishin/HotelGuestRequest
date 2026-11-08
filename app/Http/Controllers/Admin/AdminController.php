@@ -103,4 +103,36 @@ class AdminController extends Controller
 
         return view('dashboards.admin.history', compact('requests'));
     }
+
+        /* ============================================================
+     |  GLOBAL REPORTS (Admin)
+     ============================================================ */
+    public function reports()
+    {
+        // Get all requests grouped by department for summary
+        $departments = ['Front Desk', 'Housekeeping', 'Maintenance', 'IT'];
+        $reportData = [];
+
+        foreach ($departments as $dept) {
+            $total = ServiceRequest::where('department', $dept)->count();
+            $resolved = ServiceRequest::where('department', $dept)->where('status', 'resolved')->count();
+            $unresolved = ServiceRequest::where('department', $dept)->whereIn('status', ['rejected', 'unavailable'])->count();
+            
+            $avgTime = ServiceRequest::where('department', $dept)
+                ->where('status', 'resolved')
+                ->whereNotNull('completed_at')
+                ->whereNotNull('created_at')
+                ->selectRaw('AVG(EXTRACT(EPOCH FROM (completed_at - created_at)) / 60) as avg_time')
+                ->value('avg_time');
+
+            $reportData[$dept] = [
+                'total' => $total,
+                'resolved' => $resolved,
+                'unresolved' => $unresolved,
+                'avg_time' => $avgTime ? round($avgTime) . ' mins' : '—',
+            ];
+        }
+
+        return view('dashboards.admin.reports', compact('reportData'));
+    }
 }
