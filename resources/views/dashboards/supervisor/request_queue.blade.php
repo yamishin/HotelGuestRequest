@@ -101,10 +101,10 @@
                                 View
                             </button>
 
-                            {{-- 2. ASSIGN BUTTON --}}
+                            {{-- 2. ASSIGN/FORWARD BUTTON --}}
                             @if (!$req->assignee)
                             <button type="button" class="btn-primary btn-sm assign-btn" data-request-id="{{ $req->id }}" data-request-title="{{ $req->title }}" data-request-room="{{ $req->stay->room->room_number ?? '—' }}" data-request-dept="{{ $req->department }}">
-                                Assign
+                                Forward
                             </button>
                             @else
                             <button type="button" class="btn-secondary btn-sm assign-btn" style="color: #E84E1B; border-color: #E84E1B;" data-request-id="{{ $req->id }}" data-request-title="{{ $req->title }} (Reassign)" data-request-room="{{ $req->stay->room->room_number ?? '—' }}" data-request-dept="{{ $req->department }}">
@@ -112,25 +112,25 @@
                             </button>
                             @endif
 
-                            {{-- 3. PROXY UPDATE BUTTONS (Only if assigned) --}}
+                            {{-- 3. PROXY UPDATE BUTTONS --}}
                             @if($req->assignee)
-                            @if($req->status === 'assigned')
-                            <form method="POST" action="{{ route('supervisor.request.proxy_status', $req) }}" style="display:inline;">
-                                @csrf @method('PATCH')
-                                <input type="hidden" name="status" value="in_progress">
-                                <button type="submit" class="btn-secondary btn-sm" style="color: #F57C00; border-color: #F57C00;" title="Mark as In Progress">
-                                    <i class="fa-solid fa-play"></i> Start
-                                </button>
-                            </form>
-                            @elseif($req->status === 'in_progress')
-                            <form method="POST" action="{{ route('supervisor.request.proxy_status', $req) }}" style="display:inline;">
-                                @csrf @method('PATCH')
-                                <input type="hidden" name="status" value="completed">
-                                <button type="submit" class="btn-primary btn-sm" style="background: #4CAF50;" title="Mark as Completed">
-                                    <i class="fa-solid fa-check"></i> Complete
-                                </button>
-                            </form>
-                            @endif
+                                @if($req->status === 'assigned')
+                                <form method="POST" action="{{ route('supervisor.request.proxy_status', $req) }}" style="display:inline;">
+                                    @csrf @method('PATCH')
+                                    <input type="hidden" name="status" value="in_progress">
+                                    <button type="submit" class="btn-secondary btn-sm" style="color: #F57C00; border-color: #F57C00;" title="Mark as In Progress">
+                                        <i class="fa-solid fa-play"></i> Start
+                                    </button>
+                                </form>
+                                @elseif($req->status === 'in_progress')
+                                <form method="POST" action="{{ route('supervisor.request.proxy_status', $req) }}" style="display:inline;">
+                                    @csrf @method('PATCH')
+                                    <input type="hidden" name="status" value="completed">
+                                    <button type="submit" class="btn-primary btn-sm" style="background: #4CAF50;" title="Mark as Completed">
+                                        <i class="fa-solid fa-check"></i> Complete
+                                    </button>
+                                </form>
+                                @endif
                             @endif
 
                         </div>
@@ -231,7 +231,7 @@
         {{-- BODY --}}
         <div class="modal-body modal-body-scroll">
 
-            {{-- DESCRIPTION (only shown if present) --}}
+            {{-- DESCRIPTION --}}
             <div class="detail-card" id="view-desc-card">
                 <div class="detail-card-header">
                     <div class="detail-icon">
@@ -418,12 +418,8 @@
         }
     }
 
-    /* Table wrapper for horizontal scroll on small screens */
-    .table-wrapper {
-        overflow-x: auto;
-    }
+    .table-wrapper { overflow-x: auto; }
 
-    /* Request code */
     .req-code {
         font-size: 0.75rem;
         font-weight: 600;
@@ -434,634 +430,206 @@
         white-space: nowrap;
     }
 
-    /* Guest cell */
-    .guest-cell {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
+    .guest-cell { display: flex; align-items: center; gap: 8px; }
 
     .guest-avatar {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: #f4f4f4;
-        color: #58595B;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.7rem;
-        font-weight: 700;
-        flex-shrink: 0;
+        width: 28px; height: 28px; border-radius: 50%;
+        background: #f4f4f4; color: #58595B;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
     }
 
-    /* Request title block */
-    .req-title {
-        font-weight: 600;
-        color: #58595B;
-        font-size: 0.85rem;
-    }
+    .req-title { font-weight: 600; color: #58595B; font-size: 0.85rem; }
+    .req-desc { font-size: 0.75rem; color: #999; margin-top: 3px; }
+    .req-time { font-size: 0.7rem; color: #bbb; margin-top: 4px; }
 
-    .req-desc {
-        font-size: 0.75rem;
-        color: #999;
-        margin-top: 3px;
-    }
-
-    .req-time {
-        font-size: 0.7rem;
-        color: #bbb;
-        margin-top: 4px;
-    }
-
-    /* Department badges */
     .dept-badge {
-        display: inline-block;
-        padding: 4px 10px;
-        border-radius: 50px;
-        font-size: 0.7rem;
-        font-weight: 600;
-        white-space: nowrap;
+        display: inline-block; padding: 4px 10px; border-radius: 50px;
+        font-size: 0.7rem; font-weight: 600; white-space: nowrap;
     }
+    .dept-housekeeping { background: #e8f5e9; color: #2e7d32; }
+    .dept-maintenance { background: #fff3e0; color: #e65100; }
+    .dept-it { background: #e3f2fd; color: #1565c0; }
+    .dept-front-desk { background: #f3e5f5; color: #6a1b9a; }
 
-    .dept-housekeeping {
-        background: #e8f5e9;
-        color: #2e7d32;
-    }
-
-    .dept-maintenance {
-        background: #fff3e0;
-        color: #e65100;
-    }
-
-    .dept-it {
-        background: #e3f2fd;
-        color: #1565c0;
-    }
-
-    .dept-front-desk {
-        background: #f3e5f5;
-        color: #6a1b9a;
-    }
-
-    /* Assignee cell */
-    .assignee-cell {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
+    .assignee-cell { display: flex; align-items: center; gap: 8px; }
     .assignee-avatar {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #E84E1B, #ff6b3d);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 0.7rem;
-        font-weight: 700;
-        flex-shrink: 0;
+        width: 28px; height: 28px; border-radius: 50%;
+        background: linear-gradient(135deg, #E84E1B, #ff6b3d); color: white;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.7rem; font-weight: 700; flex-shrink: 0;
     }
+    .assignee-cell span { font-size: 0.85rem; color: #58595B; }
 
-    .assignee-cell span {
-        font-size: 0.85rem;
-        color: #58595B;
-    }
+    .actions-cell { display: flex; gap: 6px; justify-content: flex-end; }
+    .btn-sm { padding: 6px 12px; font-size: 0.75rem; }
 
-    /* Actions */
-    .actions-cell {
-        display: flex;
-        gap: 6px;
-        justify-content: flex-end;
-    }
+    .empty-state { text-align: center; padding: 60px 20px; }
+    .empty-icon { font-size: 3rem; margin-bottom: 15px; }
+    .empty-state h3 { color: #58595B; margin-bottom: 6px; }
+    .empty-state p { color: #999; font-size: 0.9rem; }
 
-    .btn-sm {
-        padding: 6px 12px;
-        font-size: 0.75rem;
-    }
-
-    /* Empty state */
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-    }
-
-    .empty-icon {
-        font-size: 3rem;
-        margin-bottom: 15px;
-    }
-
-    .empty-state h3 {
-        color: #58595B;
-        margin-bottom: 6px;
-    }
-
-    .empty-state p {
-        color: #999;
-        font-size: 0.9rem;
-    }
-
-    /* Modal */
     .modal-overlay {
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.5);
-        display: none;
-        align-items: center;
-        justify-content: center;
-        z-index: 2000;
-        padding: 20px;
+        position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
+        display: none; align-items: center; justify-content: center;
+        z-index: 2000; padding: 20px;
     }
-
-    .modal-overlay.active {
-        display: flex;
-    }
-
+    .modal-overlay.active { display: flex; }
     .modal {
-        background: white;
-        border-radius: 12px;
-        width: 100%;
-        max-width: 480px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-        overflow: hidden;
+        background: white; border-radius: 12px; width: 100%; max-width: 480px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2); overflow: hidden;
     }
-
     .modal-header {
-        padding: 20px 25px;
-        border-bottom: 1px solid #f4f4f4;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        padding: 20px 25px; border-bottom: 1px solid #f4f4f4;
+        display: flex; justify-content: space-between; align-items: center;
     }
-
-    .modal-header h3 {
-        font-size: 1.1rem;
-        color: #58595B;
-    }
-
-    .modal-close {
-        background: none;
-        border: none;
-        font-size: 1.5rem;
-        color: #999;
-        cursor: pointer;
-        line-height: 1;
-    }
-
-    .modal-close:hover {
-        color: #E84E1B;
-    }
-
-    .modal-body {
-        padding: 25px;
-    }
-
-    .modal-info {
-        background: #fafafa;
-        padding: 15px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-    }
-
-    .info-line {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.85rem;
-        padding: 4px 0;
-    }
-
-    .info-line span {
-        color: #888;
-    }
-
-    .info-line strong {
-        color: #58595B;
-    }
-
-    .modal-label {
-        display: block;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #58595B;
-        margin-bottom: 8px;
-    }
-
+    .modal-header h3 { font-size: 1.1rem; color: #58595B; }
+    .modal-close { background: none; border: none; font-size: 1.5rem; color: #999; cursor: pointer; line-height: 1; }
+    .modal-close:hover { color: #E84E1B; }
+    .modal-body { padding: 25px; }
+    .modal-info { background: #fafafa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+    .info-line { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 4px 0; }
+    .info-line span { color: #888; }
+    .info-line strong { color: #58595B; }
+    .modal-label { display: block; font-size: 0.8rem; font-weight: 600; color: #58595B; margin-bottom: 8px; }
     .modal-select {
-        width: 100%;
-        padding: 12px 14px;
-        border: 1px solid #eee;
-        border-radius: 8px;
-        font-family: 'Montserrat', sans-serif;
-        font-size: 0.9rem;
-        outline: none;
-        background: white;
+        width: 100%; padding: 12px 14px; border: 1px solid #eee; border-radius: 8px;
+        font-family: 'Montserrat', sans-serif; font-size: 0.9rem; outline: none; background: white;
     }
-
-    .modal-select:focus {
-        border-color: #E84E1B;
-    }
-
+    .modal-select:focus { border-color: #E84E1B; }
     .modal-footer {
-        padding: 15px 25px;
-        background: #fafafa;
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-        border-top: 1px solid #f4f4f4;
+        padding: 15px 25px; background: #fafafa;
+        display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #f4f4f4;
     }
-
 
     /* ============================================================
            REQUEST DETAIL MODAL — REDESIGNED
            ============================================================ */
-    .modal-lg {
-        max-width: 620px;
-    }
-
-    /* HERO HEADER */
+    .modal-lg { max-width: 620px; }
     .modal-hero {
         background: linear-gradient(135deg, #E84E1B 0%, #ff6b3d 100%);
-        color: white;
-        padding: 25px 30px;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        position: relative;
-        border-radius: 12px 12px 0 0;
+        color: white; padding: 25px 30px;
+        display: flex; justify-content: space-between; align-items: flex-start;
+        position: relative; border-radius: 12px 12px 0 0;
     }
-
-    .modal-hero-content {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .modal-hero-top {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 12px;
-    }
-
+    .modal-hero-content { flex: 1; min-width: 0; }
+    .modal-hero-top { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
     .hero-code {
-        font-size: 0.7rem;
-        font-weight: 700;
-        background: rgba(255, 255, 255, 0.2);
-        padding: 4px 10px;
-        border-radius: 5px;
-        letter-spacing: 0.5px;
+        font-size: 0.7rem; font-weight: 700; background: rgba(255, 255, 255, 0.2);
+        padding: 4px 10px; border-radius: 5px; letter-spacing: 0.5px;
     }
-
     .hero-badge {
-        font-size: 0.7rem;
-        font-weight: 700;
-        background: rgba(255, 255, 255, 0.9);
-        color: #E84E1B;
-        padding: 4px 10px;
-        border-radius: 50px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+        font-size: 0.7rem; font-weight: 700; background: rgba(255, 255, 255, 0.9);
+        color: #E84E1B; padding: 4px 10px; border-radius: 50px;
+        text-transform: uppercase; letter-spacing: 0.5px;
     }
+    .hero-badge.badge-success { background: #e8f5e9; color: #2e7d32; }
+    .hero-badge.badge-warning { background: #fff8e1; color: #e65100; }
+    .hero-badge.badge-danger { background: #ffebee; color: #c62828; }
+    .hero-badge.badge-info { background: #e3f2fd; color: #1565c0; }
+    .hero-badge.badge-grey { background: #f4f4f4; color: #58595B; }
 
-    .hero-badge.badge-success {
-        background: #e8f5e9;
-        color: #2e7d32;
-    }
-
-    .hero-badge.badge-warning {
-        background: #fff8e1;
-        color: #e65100;
-    }
-
-    .hero-badge.badge-danger {
-        background: #ffebee;
-        color: #c62828;
-    }
-
-    .hero-badge.badge-info {
-        background: #e3f2fd;
-        color: #1565c0;
-    }
-
-    .hero-badge.badge-grey {
-        background: #f4f4f4;
-        color: #58595B;
-    }
-
-    .hero-title {
-        font-size: 1.3rem;
-        font-weight: 700;
-        margin-bottom: 10px;
-        line-height: 1.3;
-    }
-
-    .hero-meta {
-        display: flex;
-        gap: 18px;
-        flex-wrap: wrap;
-        font-size: 0.8rem;
-        opacity: 0.95;
-    }
-
-    .hero-meta-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
+    .hero-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 10px; line-height: 1.3; }
+    .hero-meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 0.8rem; opacity: 0.95; }
+    .hero-meta-item { display: flex; align-items: center; gap: 6px; }
     .modal-hero-close {
-        background: rgba(255, 255, 255, 0.15);
-        border: none;
-        color: white;
-        width: 34px;
-        height: 34px;
-        border-radius: 50%;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        transition: background 0.2s;
+        background: rgba(255, 255, 255, 0.15); border: none; color: white;
+        width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; transition: background 0.2s;
     }
+    .modal-hero-close:hover { background: rgba(255, 255, 255, 0.3); }
+    .modal-body-scroll { max-height: 60vh; overflow-y: auto; padding: 25px 30px; }
+    .modal-body-scroll::-webkit-scrollbar { width: 6px; }
+    .modal-body-scroll::-webkit-scrollbar-thumb { background: #ddd; border-radius: 3px; }
 
-    .modal-hero-close:hover {
-        background: rgba(255, 255, 255, 0.3);
-    }
-
-    /* SCROLLABLE BODY */
-    .modal-body-scroll {
-        max-height: 60vh;
-        overflow-y: auto;
-        padding: 25px 30px;
-    }
-
-    .modal-body-scroll::-webkit-scrollbar {
-        width: 6px;
-    }
-
-    .modal-body-scroll::-webkit-scrollbar-thumb {
-        background: #ddd;
-        border-radius: 3px;
-    }
-
-    /* DETAIL CARDS */
     .detail-card {
-        background: #fafafa;
-        border-radius: 10px;
-        padding: 18px 20px;
-        margin-bottom: 15px;
-        border: 1px solid #f0f0f0;
+        background: #fafafa; border-radius: 10px; padding: 18px 20px;
+        margin-bottom: 15px; border: 1px solid #f0f0f0;
     }
-
-    .detail-card:last-child {
-        margin-bottom: 0;
-    }
-
-    .detail-card-header {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 15px;
-    }
-
+    .detail-card:last-child { margin-bottom: 0; }
+    .detail-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 15px; }
     .detail-icon {
-        width: 30px;
-        height: 30px;
-        border-radius: 8px;
-        background: #fff5f2;
-        color: #E84E1B;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
+        width: 30px; height: 30px; border-radius: 8px;
+        background: #fff5f2; color: #E84E1B;
+        display: flex; align-items: center; justify-content: center; flex-shrink: 0;
     }
-
     .detail-card-header h4 {
-        font-size: 0.75rem;
-        font-weight: 700;
-        color: #58595B;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+        font-size: 0.75rem; font-weight: 700; color: #58595B;
+        text-transform: uppercase; letter-spacing: 1px;
     }
-
-    /* DESCRIPTION */
     .detail-desc {
-        font-size: 0.9rem;
-        color: #58595B;
-        line-height: 1.7;
-        background: white;
-        padding: 15px 18px;
-        border-radius: 8px;
-        border-left: 3px solid #E84E1B;
+        font-size: 0.9rem; color: #58595B; line-height: 1.7;
+        background: white; padding: 15px 18px; border-radius: 8px; border-left: 3px solid #E84E1B;
     }
 
-    /* INFO GRID */
-    .info-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-    }
-
-    @media (max-width: 500px) {
-        .info-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    .info-item {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        background: white;
-        padding: 12px 15px;
-        border-radius: 8px;
-    }
-
-    .info-item-icon {
-        font-size: 1.1rem;
-        flex-shrink: 0;
-    }
-
-    .info-item-content {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-    }
-
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    @media (max-width: 500px) { .info-grid { grid-template-columns: 1fr; } }
+    .info-item { display: flex; align-items: center; gap: 12px; background: white; padding: 12px 15px; border-radius: 8px; }
+    .info-item-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .info-item-content { display: flex; flex-direction: column; min-width: 0; }
     .info-item-label {
-        font-size: 0.65rem;
-        color: #999;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: 600;
-        margin-bottom: 2px;
+        font-size: 0.65rem; color: #999; text-transform: uppercase;
+        letter-spacing: 0.5px; font-weight: 600; margin-bottom: 2px;
     }
-
     .info-item-value {
-        font-size: 0.85rem;
-        color: #58595B;
-        font-weight: 600;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-size: 0.85rem; color: #58595B; font-weight: 600;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
 
-    /* GUEST CARD */
     .guest-card {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        background: white;
-        padding: 15px 18px;
-        border-radius: 8px;
-        margin-bottom: 12px;
+        display: flex; align-items: center; gap: 15px;
+        background: white; padding: 15px 18px; border-radius: 8px; margin-bottom: 12px;
     }
-
     .guest-avatar-lg {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #E84E1B, #ff6b3d);
-        color: white;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.1rem;
-        font-weight: 700;
-        flex-shrink: 0;
+        width: 50px; height: 50px; border-radius: 50%;
+        background: linear-gradient(135deg, #E84E1B, #ff6b3d); color: white;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.1rem; font-weight: 700; flex-shrink: 0;
     }
+    .guest-main { min-width: 0; }
+    .guest-name-lg { font-size: 1rem; font-weight: 700; color: #58595B; margin-bottom: 3px; }
+    .guest-code-lg { font-size: 0.75rem; color: #999; }
 
-    .guest-main {
-        min-width: 0;
-    }
-
-    .guest-name-lg {
-        font-size: 1rem;
-        font-weight: 700;
-        color: #58595B;
-        margin-bottom: 3px;
-    }
-
-    .guest-code-lg {
-        font-size: 0.75rem;
-        color: #999;
-    }
-
-    .contact-rows {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
+    .contact-rows { display: flex; flex-direction: column; gap: 8px; }
     .contact-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background: white;
-        padding: 10px 15px;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        color: #58595B;
+        display: flex; align-items: center; gap: 10px;
+        background: white; padding: 10px 15px; border-radius: 8px;
+        font-size: 0.85rem; color: #58595B;
     }
+    .contact-icon { font-size: 0.95rem; flex-shrink: 0; }
+    .contact-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    .contact-icon {
-        font-size: 0.95rem;
-        flex-shrink: 0;
-    }
-
-    .contact-value {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    /* STAY TIMELINE */
-    .stay-timeline {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        background: white;
-        padding: 15px 18px;
-        border-radius: 8px;
-    }
-
-    .timeline-block {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        flex: 1;
-        min-width: 0;
-    }
-
-    .timeline-icon {
-        font-size: 1.2rem;
-        flex-shrink: 0;
-    }
-
-    .timeline-content {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-    }
-
-    .timeline-label {
-        font-size: 0.65rem;
-        color: #999;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        font-weight: 600;
-    }
-
+    .stay-timeline { display: flex; align-items: center; gap: 10px; background: white; padding: 15px 18px; border-radius: 8px; }
+    .timeline-block { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    .timeline-icon { font-size: 1.2rem; flex-shrink: 0; }
+    .timeline-content { display: flex; flex-direction: column; min-width: 0; }
+    .timeline-label { font-size: 0.65rem; color: #999; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
     .timeline-value {
-        font-size: 0.85rem;
-        color: #58595B;
-        font-weight: 600;
-        margin-top: 2px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        font-size: 0.85rem; color: #58595B; font-weight: 600;
+        margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-
-    .timeline-divider {
-        display: flex;
-        align-items: center;
-        flex-shrink: 0;
-    }
-
-    .timeline-line {
-        width: 15px;
-        height: 2px;
-        background: #eee;
-    }
-
-    .timeline-dot {
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: #E84E1B;
-    }
+    .timeline-divider { display: flex; align-items: center; flex-shrink: 0; }
+    .timeline-line { width: 15px; height: 2px; background: #eee; }
+    .timeline-dot { width: 6px; height: 6px; border-radius: 50%; background: #E84E1B; }
 </style>
 
 <script>
+    // --- ASSIGN MODAL LOGIC ---
     function openAssignModal(requestId, title, room, dept) {
         document.getElementById('modal-title').textContent = title;
         document.getElementById('modal-room').textContent = room;
-        document.getElementById('modal-dept').textContent = dept;
-
-        // Set the form action to the correct assign route
+        
+        // Set the form action
         document.getElementById('assignForm').action = '/dashboard/supervisor/assign/' + requestId;
 
-        // Pre-select staff from same department (optional but helpful)
-        const select = document.getElementById('staff-select');
-        select.value = '';
-        Array.from(select.options).forEach(opt => {
-            if (opt.dataset.dept === dept) {
-                opt.style.fontWeight = 'bold';
-            } else {
-                opt.style.fontWeight = 'normal';
-            }
-        });
+        // Auto-select the department dropdown based on the request
+        const deptSelect = document.getElementById('dept-select');
+        if (dept && dept !== 'Unassigned') {
+            deptSelect.value = dept;
+        } else {
+            deptSelect.value = 'Front Desk';
+        }
 
         document.getElementById('assignModal').classList.add('active');
     }
@@ -1070,7 +638,6 @@
         document.getElementById('assignModal').classList.remove('active');
     }
 
-    // Attach click handlers to assign buttons
     document.querySelectorAll('.assign-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             openAssignModal(
@@ -1082,39 +649,27 @@
         });
     });
 
-    // Close modal when clicking outside
     document.getElementById('assignModal').addEventListener('click', function(e) {
         if (e.target === this) closeAssignModal();
     });
 
-    // Close on Escape key
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeAssignModal();
-    });
-
-    /* ============================================================
-         |  REQUEST DETAIL MODAL
-         ============================================================ */
+    // --- VIEW MODAL LOGIC ---
     function openViewModal(data) {
-        // Hero
         document.getElementById('view-title').textContent = data.title;
         document.getElementById('view-code').textContent = data.code;
         document.getElementById('view-age').textContent = 'Submitted ' + data.age;
         document.getElementById('view-room').textContent = 'Room ' + data.roomNumber;
 
-        // Status badge
         const badge = document.getElementById('view-status-badge');
         badge.textContent = data.status;
         badge.className = 'hero-badge badge-' + data.statusColor;
 
-        // Meta fields
         document.getElementById('view-dept').textContent = data.dept;
         document.getElementById('view-created').textContent = data.created;
         document.getElementById('view-completed').textContent = data.completed || '—';
         document.getElementById('view-assignee').textContent =
             data.assignee ? data.assignee + ' (' + data.assigneeDept + ')' : 'Unassigned';
 
-        // Description — show card only if present
         const descCard = document.getElementById('view-desc-card');
         if (data.desc && data.desc.trim() !== '') {
             document.getElementById('view-desc').textContent = data.desc;
@@ -1123,26 +678,18 @@
             descCard.style.display = 'none';
         }
 
-        // Guest
-        const initials = data.guestName
-            .split(' ')
-            .map(n => n[0])
-            .slice(0, 2)
-            .join('')
-            .toUpperCase();
+        const initials = data.guestName.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
         document.getElementById('view-guest-avatar').textContent = initials;
         document.getElementById('view-guest-name').textContent = data.guestName;
         document.getElementById('view-guest-code').textContent = data.guestCode;
         document.getElementById('view-guest-email').textContent = data.guestEmail;
         document.getElementById('view-guest-phone').textContent = data.guestPhone;
 
-        // Stay
         document.getElementById('view-checkin').textContent = data.stayCheckin;
         document.getElementById('view-checkout').textContent = data.stayCheckout;
         document.getElementById('view-room-number').textContent = data.roomNumber;
         document.getElementById('view-floor').textContent = 'Floor ' + data.roomFloor;
 
-        // Show
         document.getElementById('viewModal').classList.add('active');
     }
 
@@ -1150,7 +697,6 @@
         document.getElementById('viewModal').classList.remove('active');
     }
 
-    // Attach handlers to all View buttons
     document.querySelectorAll('.view-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             openViewModal({
@@ -1178,33 +724,15 @@
         });
     });
 
-    // Close the view modal when clicking outside
     document.getElementById('viewModal').addEventListener('click', function(e) {
         if (e.target === this) closeViewModal();
     });
 
-    // Also close the view modal with Escape
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeViewModal();
-    });
-
-
-    function openAssignModal(requestId, title, room, dept) {
-        document.getElementById('modal-title').textContent = title;
-        document.getElementById('modal-room').textContent = room;
-
-        // Set the form action to route to the accept route
-        document.getElementById('assignForm').action = '/dashboard/supervisor/requests/' + requestId + '/accept';
-
-        // Auto-select the suggested department
-        const deptSelect = document.getElementById('dept-select');
-        if (dept && dept !== 'Unassigned') {
-            deptSelect.value = dept;
-        } else {
-            deptSelect.value = 'Front Desk'; // Default fallback
+        if (e.key === 'Escape') {
+            closeAssignModal();
+            closeViewModal();
         }
-
-        document.getElementById('assignModal').classList.add('active');
-    }
+    });
 </script>
 @endsection

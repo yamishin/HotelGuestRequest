@@ -119,22 +119,34 @@ class SupervisorController extends Controller
         return back()->with('success', 'Request marked unavailable.');
     }
 
-    /* ============================================================
-     |  ASSIGN / REASSIGN (Fixed 403 Logic)
-     ============================================================ */
-    public function assign(Request $request, ServiceRequest $serviceRequest)
+       public function assign(Request $request, ServiceRequest $serviceRequest)
     {
-        // Allow if user is Front Desk OR if department matches
+        // 1. Check if the user is Front Desk. If not, they can only assign to their own department.
         if (auth()->user()->department !== 'Front Desk' && $serviceRequest->department !== auth()->user()->department) {
-            abort(403, 'Unauthorized department assignment.');
+            abort(403, 'You do not have permission to assign this request.');
         }
 
-        $validated = $request->validate(['assigned_to' => 'required|exists:users,id']);
+        // 2. Validate the incoming data
+        $validated = $request->validate([
+            'assigned_to' => 'required|exists:users,id',
+            'department'  => 'nullable|in:Housekeeping,Maintenance,IT,Front Desk', // Front desk uses this to route
+        ]);
+
         $staff = User::findOrFail($validated['assigned_to']);
 
+        // 3. If the Front Desk is doing the assignment, they might also be routing it to a new department
+        if (auth()->user()->department === 'Front Desk' && !empty($validated['department'])) {
+            
+            // If they are assigning it to a staff member from a different department, update the request department
+            if ($serviceRequest->department !== $validated['department']) {
+                $serviceRequest->update(['department' => $validated['department']]);
+            }
+        }
+
+        // 4. Proceed with the assignment
         $serviceRequest->assignToStaff($staff->id);
 
-        return back()->with('success', "Request assigned to {$staff->name}.");
+        return back()->with('success', "Request successfully assigned to {$staff->name}.");
     }
 
     public function reassign(Request $request, ServiceRequest $serviceRequest)
