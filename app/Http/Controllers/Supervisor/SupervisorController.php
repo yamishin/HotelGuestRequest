@@ -41,8 +41,12 @@ class SupervisorController extends Controller
             ->take(5)->get();
 
         return view('dashboards.supervisor.index', compact(
-            'routedCount', 'assignedCount', 'inProgressCount',
-            'awaitingReview', 'recentRequests', 'staffWorkload'
+            'routedCount',
+            'assignedCount',
+            'inProgressCount',
+            'awaitingReview',
+            'recentRequests',
+            'staffWorkload'
         ));
     }
 
@@ -55,16 +59,16 @@ class SupervisorController extends Controller
         $query = ServiceRequest::with(['stay.guest', 'stay.room', 'assignee', 'router']);
 
         if ($dept === 'Front Desk') {
-            $query->where(function($q) {
+            $query->where(function ($q) {
                 $q->where('status', 'pending')
-                  ->orWhere(function($q2) {
-                      $q2->where('department', 'Front Desk')
-                         ->whereIn('status', ['routed', 'assigned', 'in_progress']);
-                  });
+                    ->orWhere(function ($q2) {
+                        $q2->where('department', 'Front Desk')
+                            ->whereIn('status', ['routed', 'assigned', 'in_progress']);
+                    });
             });
         } else {
             $query->where('department', $dept)
-                  ->whereIn('status', ['routed', 'assigned', 'in_progress']);
+                ->whereIn('status', ['pending', 'routed', 'assigned', 'in_progress']);
         }
 
         if ($request->filled('status') && $request->status !== 'all') {
@@ -75,8 +79,8 @@ class SupervisorController extends Controller
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('title', 'like', "%{$s}%")
-                  ->orWhere('request_code', 'like', "%{$s}%")
-                  ->orWhereHas('stay.room', fn($r) => $r->where('room_number', 'like', "%{$s}%"));
+                    ->orWhere('request_code', 'like', "%{$s}%")
+                    ->orWhereHas('stay.room', fn($r) => $r->where('room_number', 'like', "%{$s}%"));
             });
         }
 
@@ -119,7 +123,7 @@ class SupervisorController extends Controller
         return back()->with('success', 'Request marked unavailable.');
     }
 
-       public function assign(Request $request, ServiceRequest $serviceRequest)
+    public function assign(Request $request, ServiceRequest $serviceRequest)
     {
         // 1. Check if the user is Front Desk. If not, they can only assign to their own department.
         if (auth()->user()->department !== 'Front Desk' && $serviceRequest->department !== auth()->user()->department) {
@@ -136,7 +140,7 @@ class SupervisorController extends Controller
 
         // 3. If the Front Desk is doing the assignment, they might also be routing it to a new department
         if (auth()->user()->department === 'Front Desk' && !empty($validated['department'])) {
-            
+
             // If they are assigning it to a staff member from a different department, update the request department
             if ($serviceRequest->department !== $validated['department']) {
                 $serviceRequest->update(['department' => $validated['department']]);
@@ -222,7 +226,7 @@ class SupervisorController extends Controller
     public function staff()
     {
         $dept = auth()->user()->department;
-        
+
         $staff = User::where('role', 'staff')
             ->where('department', $dept)
             ->withCount(['activeRequests', 'assignedRequests as total_requests_count'])
@@ -252,10 +256,10 @@ class SupervisorController extends Controller
         ]);
 
         $dept = auth()->user()->department;
-        
+
         $lastEmployee = User::whereNotNull('employee_code')->orderByDesc('id')->first();
         $nextNumber = $lastEmployee && preg_match('/EMP-(\d+)/', $lastEmployee->employee_code, $m) ? (int) $m[1] + 1 : 1;
-        
+
         $staff = User::create([
             'name'          => $validated['name'],
             'email'         => $validated['email'],
@@ -272,8 +276,11 @@ class SupervisorController extends Controller
         return redirect()->route('supervisor.staff')
             ->with('success', "Staff member {$staff->name} added to {$dept}.")
             ->with('new_staff_credentials', [
-                'name' => $staff->name, 'email' => $staff->email,
-                'employee_code' => $staff->employee_code, 'department' => $staff->department, 'password' => 'password',
+                'name' => $staff->name,
+                'email' => $staff->email,
+                'employee_code' => $staff->employee_code,
+                'department' => $staff->department,
+                'password' => 'password',
             ]);
     }
 
@@ -323,7 +330,11 @@ class SupervisorController extends Controller
         if ($user->role !== 'staff' || $user->department !== auth()->user()->department) abort(404);
         $user->update(['password' => Hash::make('password')]);
         return back()->with('success', "Password reset.")->with('new_staff_credentials', [
-            'name' => $user->name, 'email' => $user->email, 'employee_code' => $user->employee_code, 'department' => $user->department, 'password' => 'password',
+            'name' => $user->name,
+            'email' => $user->email,
+            'employee_code' => $user->employee_code,
+            'department' => $user->department,
+            'password' => 'password',
         ]);
     }
 
@@ -355,10 +366,10 @@ class SupervisorController extends Controller
     public function reports()
     {
         $dept = auth()->user()->department;
-        
+
         $totalRequests = ServiceRequest::where('department', $dept)->count();
         $resolvedRequests = ServiceRequest::where('department', $dept)->where('status', 'resolved')->count();
-        
+
         $avgResolutionTime = ServiceRequest::where('department', $dept)
             ->where('status', 'resolved')
             ->whereNotNull('completed_at')
@@ -394,7 +405,10 @@ class SupervisorController extends Controller
         return back()->with('success', 'All notifications marked as read.');
     }
 
-    public function profile() { return view('dashboards.supervisor.profile'); }
+    public function profile()
+    {
+        return view('dashboards.supervisor.profile');
+    }
 
     public function updateProfile(Request $request)
     {
@@ -416,7 +430,7 @@ class SupervisorController extends Controller
     /* ============================================================
      |  FRONT DESK: Guest & Check-In Management
      ============================================================ */
-    
+
     public function checkInForm()
     {
         if (auth()->user()->department !== 'Front Desk') abort(403);
@@ -486,7 +500,7 @@ class SupervisorController extends Controller
     {
         if (auth()->user()->department !== 'Front Desk') abort(403);
         $stay->load(['guest', 'room']);
-        
+
         // ✅ FIXED: Dynamically uses the Render URL
         $accessUrl = url('/g/' . $stay->access_token);
 
@@ -496,14 +510,14 @@ class SupervisorController extends Controller
     public function guestsStays(Request $request)
     {
         if (auth()->user()->department !== 'Front Desk') abort(403);
-        
+
         $query = \App\Models\Guest::with(['stays.room']);
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('first_name', 'like', "%{$s}%")
-                  ->orWhere('last_name', 'like', "%{$s}%")
-                  ->orWhere('email', 'like', "%{$s}%");
+                    ->orWhere('last_name', 'like', "%{$s}%")
+                    ->orWhere('email', 'like', "%{$s}%");
             });
         }
         $guests = $query->latest()->paginate(15)->withQueryString();
@@ -513,7 +527,7 @@ class SupervisorController extends Controller
     public function rooms()
     {
         if (auth()->user()->department !== 'Front Desk') abort(403);
-        
+
         $rooms = \App\Models\Room::with('currentStay.guest')->orderBy('floor')->orderBy('room_number')->get();
         $roomsByFloor = $rooms->groupBy('floor');
         $roomCounts = [
