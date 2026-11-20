@@ -524,21 +524,54 @@ class SupervisorController extends Controller
         return view('dashboards.frontdesk.qr_code', compact('stay', 'accessUrl'));
     }
 
+    /* ============================================================
+     |  FIXED: Guests & Stays with working status filters,
+     |  phone search, and room-number search
+     ============================================================ */
     public function guestsStays(Request $request)
     {
         if (auth()->user()->department !== 'Front Desk') abort(403);
 
         $query = \App\Models\Guest::with(['stays.room']);
+
+        // ── STATUS FILTER ──
+        $status = $request->get('status', 'all');
+
+        if ($status === 'active') {
+            $query->whereHas('stays', fn($q) => $q->where('status', 'active'));
+        } elseif ($status === 'upcoming') {
+            $query->whereHas('stays', fn($q) => $q->where('status', 'upcoming'));
+        } elseif ($status === 'checked_out') {
+            // Has a completed stay AND no active/upcoming stay
+            $query->whereHas('stays', fn($q) => $q->where('status', 'completed'))
+                  ->whereDoesntHave('stays', fn($q) => $q->whereIn('status', ['active', 'upcoming']));
+        }
+
+        // ── SEARCH (name, email, phone, room number) ──
         if ($request->filled('search')) {
             $s = $request->search;
             $query->where(function ($q) use ($s) {
                 $q->where('first_name', 'like', "%{$s}%")
-                    ->orWhere('last_name', 'like', "%{$s}%")
-                    ->orWhere('email', 'like', "%{$s}%");
+                  ->orWhere('last_name', 'like', "%{$s}%")
+                  ->orWhere('email', 'like', "%{$s}%")
+                  ->orWhere('phone', 'like', "%{$s}%")
+                  ->orWhereHas('stays.room', fn($r) => $r->where('room_number', 'like', "%{$s}%"));
             });
         }
+
         $guests = $query->latest()->paginate(15)->withQueryString();
-        return view('dashboards.frontdesk.guests_stays', compact('guests'));
+
+        // ── COUNTS FOR THE FILTER TABS ──
+        $counts = [
+            'all'         => \App\Models\Guest::count(),
+            'active'      => \App\Models\Guest::whereHas('stays', fn($q) => $q->where('status', 'active'))->count(),
+            'upcoming'    => \App\Models\Guest::whereHas('stays', fn($q) => $q->where('status', 'upcoming'))->count(),
+            'checked_out' => \App\Models\Guest::whereHas('stays', fn($q) => $q->where('status', 'completed'))
+                                ->whereDoesntHave('stays', fn($q) => $q->whereIn('status', ['active', 'upcoming']))
+                                ->count(),
+        ];
+
+        return view('dashboards.frontdesk.guests_stays', compact('guests', 'counts'));
     }
 
     public function rooms()
