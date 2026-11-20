@@ -19,7 +19,7 @@
         <div class="detail-row"><span>Email</span><strong>{{ $guest->email ?? '—' }}</strong></div>
         <div class="detail-row"><span>Phone</span><strong>{{ $guest->phone ?? '—' }}</strong></div>
         <div class="detail-row"><span>Total Stays</span><strong>{{ $guest->stays->count() }}</strong></div>
-        <div class="detail-row"><span>Reviews Left</span><strong>{{ $guest->reviews->count() }}</strong></div>
+        <div class="detail-row"><span>Reviews Left</span><strong>{{ isset($guest->reviews) ? $guest->reviews->count() : 0 }}</strong></div>
     </div>
 
     <div class="card">
@@ -27,9 +27,11 @@
         @forelse ($guest->stays->sortByDesc('check_in_date') as $stay)
         <div class="stay-row">
             <div>
-                <strong>Room {{ $stay->room->room_number }}</strong>
+                <strong>Room {{ $stay->room->room_number ?? '—' }}</strong>
                 <div style="font-size: 0.75rem; color: #999;">
-                    {{ $stay->check_in_date->format('M d, Y') }} → {{ $stay->check_out_date->format('M d, Y') }}
+                    {{ $stay->check_in_date ? \Carbon\Carbon::parse($stay->check_in_date)->format('M d, Y') : '—' }}
+                    →
+                    {{ $stay->check_out_date ? \Carbon\Carbon::parse($stay->check_out_date)->format('M d, Y') : '—' }}
                 </div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
@@ -50,60 +52,66 @@
 </div>
 
 {{-- ============================================================
-         ACTIVE STAY QR CODE (BACKUP FOR FRONT DESK)
-         Only shown if the guest has an active stay
-         ============================================================ --}}
+     ACTIVE STAY QR CODE (BACKUP FOR FRONT DESK)
+     Only shown if the guest has an active stay.
+     The $accessUrl is computed INSIDE the @if block so that a
+     checked-out guest (with $activeStay === null) never triggers
+     "Attempt to read property on null".
+     ============================================================ --}}
 @php
-$activeStay = $guest->stays->where('status', 'active')->first();
-$accessUrl = url('/g/' . $activeStay->access_token);
+    $activeStay = $guest->stays->where('status', 'active')->first();
 @endphp
 
 @if ($activeStay)
-<div class="card" style="margin-top: 20px;">
-    <h3 class="card-title">
-        Backup QR Code — Room {{ $activeStay->room->room_number }}
-        <span class="badge badge-success">Active Stay</span>
-    </h3>
-    <p style="font-size: 0.85rem; color: #888; margin-bottom: 20px;">
-        Keep this as a backup in case the guest loses their printed QR card.
-        This code will automatically become invalid once they check out.
-    </p>
+    @php
+        $accessUrl = url('/g/' . $activeStay->access_token);
+    @endphp
 
-    <div style="display: flex; gap: 30px; align-items: center; flex-wrap: wrap;">
-        <div style="background: #fafafa; padding: 20px; border-radius: 12px;">
-            <div id="backup-qr"></div>
-        </div>
-        <div style="flex: 1; min-width: 220px;">
-            <div class="detail-row"><span>Guest</span><strong>{{ $guest->full_name }}</strong></div>
-            <div class="detail-row"><span>Room</span><strong>{{ $activeStay->room->room_number }}</strong></div>
-            <div class="detail-row"><span>Check-out</span><strong>{{ $activeStay->check_out_date->format('M d, Y') }}</strong></div>
-            <div class="detail-row" style="border-bottom: none;">
-                <span>Actions</span>
-                <strong style="display: flex; gap: 8px;">
-                    <a href="{{ route('supervisor.check_in.qr', $activeStay) }}" class="btn-primary" style="padding: 6px 12px; font-size: 0.75rem;"><i class="fa-solid fa-print"></i> Print Full QR</a>
-                </strong>
+    <div class="card" style="margin-top: 20px;">
+        <h3 class="card-title">
+            Backup QR Code — Room {{ $activeStay->room->room_number ?? '—' }}
+            <span class="badge badge-success">Active Stay</span>
+        </h3>
+        <p style="font-size: 0.85rem; color: #888; margin-bottom: 20px;">
+            Keep this as a backup in case the guest loses their printed QR card.
+            This code will automatically become invalid once they check out.
+        </p>
+
+        <div style="display: flex; gap: 30px; align-items: center; flex-wrap: wrap;">
+            <div style="background: #fafafa; padding: 20px; border-radius: 12px;">
+                <div id="backup-qr"></div>
+            </div>
+            <div style="flex: 1; min-width: 220px;">
+                <div class="detail-row"><span>Guest</span><strong>{{ $guest->full_name }}</strong></div>
+                <div class="detail-row"><span>Room</span><strong>{{ $activeStay->room->room_number ?? '—' }}</strong></div>
+                <div class="detail-row"><span>Check-out</span><strong>{{ $activeStay->check_out_date ? \Carbon\Carbon::parse($activeStay->check_out_date)->format('M d, Y') : '—' }}</strong></div>
+                <div class="detail-row" style="border-bottom: none;">
+                    <span>Actions</span>
+                    <strong style="display: flex; gap: 8px;">
+                        <a href="{{ route('supervisor.check_in.qr', $activeStay) }}" class="btn-primary" style="padding: 6px 12px; font-size: 0.75rem;"><i class="fa-solid fa-print"></i> Print Full QR</a>
+                    </strong>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-<script>
-    new QRCode(document.getElementById("backup-qr"), {
-        text: "{{ $accessUrl }}",
-        width: 180,
-        height: 180,
-        colorDark: "#58595B",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.H
-    });
-</script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+        new QRCode(document.getElementById("backup-qr"), {
+            text: "{{ $accessUrl }}",
+            width: 180,
+            height: 180,
+            colorDark: "#58595B",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    </script>
 @else
-<div class="card" style="margin-top: 20px; background: #f9f9f9;">
-    <p style="font-size: 0.85rem; color: #888; text-align: center; padding: 15px;">
-        <i class="fa-solid fa-lock"></i> No active stay — QR code backup is unavailable.
-    </p>
-</div>
+    <div class="card" style="margin-top: 20px; background: #f9f9f9;">
+        <p style="font-size: 0.85rem; color: #888; text-align: center; padding: 15px;">
+            <i class="fa-solid fa-lock"></i> No active stay — QR code backup is unavailable.
+        </p>
+    </div>
 @endif
 
 <style>
