@@ -41,7 +41,7 @@
         'pending' => ['Request Received', 'We received your request and it is in the queue.'],
         'assigned' => ['Assigned', 'A staff member has been assigned to your request.'],
         'in_progress' => ['In Progress', 'Someone is working on your request right now.'],
-        'completed' => ['Awaiting Your Confirmation', 'Staff marked this done. Please confirm it\'s resolved.'],
+        'completed' => ['Awaiting for Confirmation', 'Supervisor marked this done.'],
         'verified' => ['Verified', 'You confirmed this was resolved. Thank you!'],
         ];
         $statusOrder = array_keys($steps);
@@ -79,7 +79,7 @@
 {{-- STAFF NOTES --}}
 @if ($serviceRequest->staff_notes)
 <div class="card">
-    <h3 class="card-title">📝 Staff Notes</h3>
+    <h3 class="card-title"><i class="fa-solid fa-note-sticky" style="color: #E84E1B; margin-right: 6px;"></i> Staff Notes</h3>
     <p style="font-size: 0.9rem; color: #58595B; line-height: 1.7; background: #fafafa; padding: 15px; border-radius: 8px; border-left: 3px solid #E84E1B;">
         {{ $serviceRequest->staff_notes }}
     </p>
@@ -88,7 +88,7 @@
 
 
 <div style="text-align: center; margin-top: 20px;">
-    <a href="{{ route('guest.my_requests') }}" class="btn-secondary">← Back to My Requests</a>
+    <a href="{{ route('guest.my_requests') }}" class="btn-secondary"><i class="fa-solid fa-arrow-left" style="margin-right: 6px;"></i> Back to My Requests</a>
 </div>
 
 <style>
