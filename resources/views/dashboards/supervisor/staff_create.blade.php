@@ -60,7 +60,7 @@
                     @error('department') <span class="error-msg">{{ $message }}</span> @enderror
                 </div>
 
-                <div class="form-group">
+                <!-- <div class="form-group">
                     <label>Shift *</label>
                     <select name="shift" required>
                         <option value="">-- Select a shift --</option>
@@ -69,7 +69,7 @@
                         <option value="night" {{ old('shift') === 'night' ? 'selected' : '' }}>Night (10 PM – 6 AM)</option>
                     </select>
                     @error('shift') <span class="error-msg">{{ $message }}</span> @enderror
-                </div>
+                </div> -->
             </div>
 
             <div class="info-box" style="margin-top: 25px;">
