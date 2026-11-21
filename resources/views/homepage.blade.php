@@ -163,13 +163,12 @@
     <!-- NAVIGATION -->
     <nav>
         <div class="logo-container">
-            <!-- Make sure the file exists in public/images/logo.png -->
             <img src="{{ asset('images/logo.png') }}" alt="Swiss-Belhotel Blulane Logo">
         </div>
         <ul class="nav-links">
             <li><a href="/">Home</a></li>
-            <li><a href="/about">About</a></li>
-            <!-- Assuming you have a login route, otherwise set href="#" -->
+            <!-- <li><a href="/about">About</a></li>
+            Assuming you have a login route, otherwise set href="#" -->
             <li><a href="/login" class="btn-login">Log In</a></li>
         </ul>
     </nav>
