@@ -88,6 +88,57 @@
         </div>
     </div>
 
+    {{-- ═══════════════════════════════════════════════════════════
+         REVIEW SECTION
+         Shows one of three states:
+           1. Existing review → read-only display
+           2. No review yet   → "Leave a Review" CTA
+           3. (nothing — no card if neither applies)
+         ═══════════════════════════════════════════════════════════ --}}
+    @if ($existingReview)
+        <div class="card">
+            <h3 class="card-title">
+                <i class="fa-solid fa-star" style="color: #E84E1B; margin-right: 6px;"></i>
+                Your Review
+            </h3>
+
+            <div style="display: flex; gap: 4px; font-size: 1.4rem; margin-bottom: 14px;">
+                @for ($i = 1; $i <= 5; $i++)
+                    <i class="fa-solid fa-star"
+                       style="color: {{ $i <= $existingReview->rating ? '#E84E1B' : '#ddd' }};"></i>
+                @endfor
+                <span style="font-size: 0.9rem; color: #888; margin-left: 10px; align-self: center;">
+                    {{ $existingReview->rating }} / 5
+                </span>
+            </div>
+
+            @if ($existingReview->comment)
+                <p style="font-size: 0.9rem; color: #58595B; line-height: 1.7; background: #fafafa; padding: 15px; border-radius: 8px; border-left: 3px solid #E84E1B; margin: 0;">
+                    {{ $existingReview->comment }}
+                </p>
+            @endif
+
+            <p style="font-size: 0.75rem; color: #999; margin-top: 12px;">
+                Submitted {{ $existingReview->created_at->format('M d, Y') }}
+            </p>
+        </div>
+
+    @else
+        <div class="card">
+            <h3 class="card-title">
+                <i class="fa-solid fa-star" style="color: #E84E1B; margin-right: 6px;"></i>
+                Review Your Stay
+            </h3>
+            <p style="font-size: 0.9rem; color: #888; margin-bottom: 20px; line-height: 1.6;">
+                How was your stay in <strong style="color: #58595B;">Room {{ $stay->room->room_number }}</strong>?
+                Your feedback helps us improve.
+            </p>
+            <a href="{{ route('guest.review.form') }}" class="btn-primary">
+                <i class="fa-solid fa-star" style="margin-right: 6px;"></i> Leave a Review
+            </a>
+        </div>
+    @endif
+
     <style>
         .stay-hero {
             background: linear-gradient(135deg, #E84E1B 0%, #ff6b3d 100%);

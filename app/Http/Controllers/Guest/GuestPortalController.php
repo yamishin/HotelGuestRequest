@@ -8,6 +8,7 @@ use App\Models\ServiceRequest;
 use App\Models\Stay;
 use App\Models\Review;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
 class GuestPortalController extends Controller
 {
@@ -56,7 +57,7 @@ class GuestPortalController extends Controller
         return view('guest.request');
     }
 
-        public function requestStore(Request $request)
+    public function requestStore(Request $request)
     {
         $stay = Stay::find(session('guest_stay_id'));
 
@@ -64,16 +65,16 @@ class GuestPortalController extends Controller
         $validated = $request->validate([
             'department'       => 'required|in:Housekeeping,Maintenance,IT,Front Desk',
             'category'         => 'nullable|string|max:150',
-            'other_category'   => 'nullable|string|max:150', // If they pick "Other"
+            'other_category'   => 'nullable|string|max:150',
             'description'      => 'nullable|string',
         ]);
 
         // 2. Determine the Title (Category or Other)
-        $title = $validated['category'];
+        $title = $validated['category'] ?? null;
         if ($title === 'Other' && !empty($validated['other_category'])) {
             $title = $validated['other_category'];
         } elseif (empty($title)) {
-            $title = $validated['department'] . ' Request'; // Fallback
+            $title = $validated['department'] . ' Request';
         }
 
         // 3. Generate a UNIQUE request code
@@ -90,7 +91,7 @@ class GuestPortalController extends Controller
             'request_code' => $newCode,
             'stay_id'      => $stay->id,
             'title'        => $title,
-            'category'     => $title, // Store the category
+            'category'     => $title,
             'description'  => $validated['description'] ?? null,
             'department'   => $validated['department'],
             'status'       => 'pending',
@@ -115,7 +116,7 @@ class GuestPortalController extends Controller
         ]);
 
         return redirect()->route('guest.dashboard')
-            ->with('success', "Request submitted! The Front Desk will review it shortly.");
+            ->with('success', 'Request submitted! The Front Desk will review it shortly.');
     }
 
     /* ============================================================
@@ -144,7 +145,18 @@ class GuestPortalController extends Controller
             $stay->check_out_date->startOfDay(), false
         ));
 
-        return view('guest.my_stay', compact('stay', 'totalRequests', 'completedRequests', 'daysRemaining'));
+        // Existing review (so the My Stay page can show the review card or CTA)
+        $existingReview = Review::where('stay_id', $stay->id)
+            ->where('guest_id', $stay->guest_id)
+            ->first();
+
+        return view('guest.my_stay', compact(
+            'stay',
+            'totalRequests',
+            'completedRequests',
+            'daysRemaining',
+            'existingReview'
+        ));
     }
 
     /* ============================================================
@@ -186,41 +198,69 @@ class GuestPortalController extends Controller
      ============================================================ */
     public function reviewForm()
     {
-        $stay = Stay::find(session('guest_stay_id'));
+        $stay = Stay::with(['guest', 'room'])->find(session('guest_stay_id'));
 
-        if ($stay->review) {
+        if (!$stay) {
             return redirect()->route('guest.dashboard')
-                ->with('error', 'You have already submitted a review.');
+                ->with('error', 'Session expired. Please scan your QR code again.');
         }
 
-        return view('guest.review');
+        // FIX: Don't rely on a Stay::review() relationship that may not exist.
+        // Query directly — works either way.
+        $existingReview = Review::where('stay_id', $stay->id)
+            ->where('guest_id', $stay->guest_id)
+            ->first();
+
+        return view('guest.review', [
+            'stay'           => $stay,
+            'existingReview' => $existingReview,
+            'canReview'      => !$existingReview,
+        ]);
     }
 
     public function reviewStore(Request $request)
     {
-        $stay = Stay::find(session('guest_stay_id'));
+        $stay = Stay::with(['guest', 'room'])->find(session('guest_stay_id'));
+
+        if (!$stay) {
+            return redirect()->route('guest.dashboard')
+                ->with('error', 'Session expired. Please scan your QR code again.');
+        }
 
         $validated = $request->validate([
             'rating'  => 'required|integer|min:1|max:5',
             'comment' => 'nullable|string|max:1000',
         ]);
 
-        Review::create([
-            'stay_id'  => $stay->id,
-            'guest_id' => $stay->guest_id,
-            'rating'   => $validated['rating'],
-            'comment'  => $validated['comment'] ?? null,
-        ]);
+        // FIX: Prevent duplicate reviews — a direct POST bypasses the form guard
+        if (Review::where('stay_id', $stay->id)->where('guest_id', $stay->guest_id)->exists()) {
+            return back()->with('error', 'You have already submitted a review for this stay.');
+        }
+
+        try {
+            Review::create([
+                'stay_id'  => $stay->id,
+                'guest_id' => $stay->guest_id,
+                'rating'   => $validated['rating'],
+                'comment'  => $validated['comment'] ?? null,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Review store failed', [
+                'stay_id' => $stay->id,
+                'error'   => $e->getMessage(),
+            ]);
+            return back()->with('error', 'Could not save your review. Please try again.');
+        }
 
         Notification::create([
             'type'        => 'review',
             'title'       => 'New Guest Review',
-            'message'     => "Room {$stay->room->room_number} left a {$validated['rating']}-star review",
+            'message'     => "Room " . ($stay->room->room_number ?? 'N/A') . " left a {$validated['rating']}-star review",
             'target_role' => 'frontdesk',
             'is_read'     => false,
         ]);
 
-        return redirect()->route('guest.dashboard')
+        return redirect()->route('guest.my_stay')
             ->with('success', 'Thank you for your feedback!');
     }
 
@@ -233,15 +273,20 @@ class GuestPortalController extends Controller
         return redirect('/')->with('success', 'You have been logged out.');
     }
 
-        /* ============================================================
+    /* ============================================================
      |  CANCEL REQUEST (Guest)
      ============================================================ */
     public function cancelRequest(\App\Models\ServiceRequest $serviceRequest)
     {
         $stay = Stay::find(session('guest_stay_id'));
 
+        if (!$stay) {
+            return redirect()->route('guest.dashboard')
+                ->with('error', 'Session expired. Please scan your QR code again.');
+        }
+
         if ($serviceRequest->stay_id !== $stay->id) {
-            abort(403);
+            abort(403, 'This request does not belong to you.');
         }
 
         // Guests can only cancel if it's still pending or routed
@@ -253,11 +298,10 @@ class GuestPortalController extends Controller
             'status' => 'cancelled',
         ]);
 
-        // Notify Front Desk
         Notification::create([
             'type'        => 'request',
             'title'       => 'Request Cancelled by Guest',
-            'message'     => "Room {$stay->room->room_number} cancelled request: {$serviceRequest->title}",
+            'message'     => "Room " . ($stay->room->room_number ?? 'N/A') . " cancelled request: {$serviceRequest->title}",
             'target_role' => 'frontdesk',
             'is_read'     => false,
         ]);
